@@ -1,0 +1,12 @@
+streamlit>=1.35.0
+anthropic>=0.30.0
+yfinance>=0.2.40
+pandas>=2.0.0
+plotly>=5.20.0
+finnhub-python>=2.4.20
+python-dotenv>=1.0.0
+ta>=0.11.0
+requests>=2.31.0
+# project-x-py requires uvloop which does not support Windows.
+# Uncomment when running on Linux/macOS or when TopstepX/ProjectX integration is needed.
+# project-x-py>=3.3.4
