@@ -21,10 +21,22 @@ def _ask(system: str, user: str, max_tokens: int = 1024) -> str:
 
 # ─── Morning Brief ────────────────────────────────────────────────────────────
 
-MORNING_BRIEF_SYSTEM = """You are a professional futures trading analyst specializing in U.S. index futures (MES, MNQ, ES, NQ, YM, RTY).
-Your role is to deliver concise, actionable morning briefings to day traders.
-Focus on: market sentiment, key price levels, catalysts, and session trading bias.
-Be direct. No fluff. Use bullet points where helpful."""
+MORNING_BRIEF_SYSTEM = """You are my personal futures trading analyst for ES and NQ.
+
+My trading strategy (Smart Money Concepts):
+1. Identify the Day High and Day Low — these are the key liquidity levels I track
+2. Identify the current trend — Bullish (price making higher highs/lows) or Bearish (lower highs/lows)
+3. Identify Inducement and POIs (Points of Interest) — areas where price may sweep liquidity (equal highs/lows, previous session highs/lows) before reversing
+4. Entry trigger — if price breaks the Day High or Low, I wait for a Change of Character (CHOCH), then enter on a retracement into a Fair Value Gap (FVG) or Order Block
+
+Definitions to apply:
+- Inducement: a liquidity sweep designed to trap retail traders before the real move
+- POI (Point of Interest): price levels with high institutional interest — previous highs/lows, supply/demand zones
+- CHOCH (Change of Character): first sign of trend reversal — price breaks the most recent swing high in a downtrend (or swing low in an uptrend)
+- FVG (Fair Value Gap): a 3-candle imbalance where the first candle's high and third candle's low don't overlap (bullish FVG), or first low and third high don't overlap (bearish FVG)
+- Order Block: the last bullish/bearish candle before a significant move in the opposite direction — where institutional orders are likely resting
+
+Be concise and direct. Use bullet points. Give specific price levels where possible."""
 
 
 def generate_morning_brief(futures_data: list, economic_events: list, market_news: list) -> str:
@@ -43,7 +55,7 @@ def generate_morning_brief(futures_data: list, economic_events: list, market_new
         for n in market_news[:5]
     ) or "  No news available."
 
-    user_msg = f"""PRE-MARKET FUTURES:
+    user_msg = f"""PRE-MARKET DATA:
 {futures_block}
 
 TODAY'S ECONOMIC EVENTS:
@@ -52,14 +64,15 @@ TODAY'S ECONOMIC EVENTS:
 LATEST MARKET NEWS:
 {news_block}
 
-Provide a morning brief covering:
-1. Overall market sentiment (Bullish / Bearish / Neutral) with 1-line reasoning
-2. Key levels to watch for MES and MNQ (support, resistance)
-3. Major catalysts or risks for the session
-4. Session trading bias with context
-5. One actionable insight for today's session"""
+Apply my SMC strategy and provide the morning brief covering:
+1. Overall trend — Bullish or Bearish for ES and NQ, with reasoning
+2. Key levels — Day High, Day Low, and any major POIs to watch
+3. Inducement zones — where liquidity may be swept before the real move
+4. Potential trade setup — if a High/Low breaks, what CHOCH + FVG/Order Block entry would look like
+5. Economic event risk — any scheduled events that could act as catalysts or invalidate setups
+6. Session bias and one actionable insight for today"""
 
-    return _ask(MORNING_BRIEF_SYSTEM, user_msg, max_tokens=1200)
+    return _ask(MORNING_BRIEF_SYSTEM, user_msg, max_tokens=1500)
 
 
 # ─── Watchlist Suggestions ────────────────────────────────────────────────────
@@ -91,6 +104,51 @@ For each stock provide:
 Then rank top 3 opportunities for today."""
 
     return _ask(WATCHLIST_SYSTEM, user_msg, max_tokens=1500)
+
+
+# ─── My Strategy (SMC) Analysis ──────────────────────────────────────────────
+
+MY_STRATEGY_SYSTEM = """You are my personal trading analyst. Apply my SMC-based strategy to stock analysis.
+
+My strategy:
+1. Identify the Day High and Day Low — key liquidity levels
+2. Identify the current trend — Bullish (higher highs/lows) or Bearish (lower highs/lows)
+3. Identify Inducement and POIs (Points of Interest) — areas where price may sweep liquidity before reversing
+4. Entry trigger — if price breaks the Day High or Low, wait for a Change of Character (CHOCH), then enter on a retracement into a Fair Value Gap (FVG) or Order Block
+
+Definitions:
+- Inducement: liquidity sweep designed to trap retail traders before the real move
+- POI (Point of Interest): key price levels with institutional interest — previous highs/lows, supply/demand zones
+- CHOCH (Change of Character): first sign of reversal — price breaks the most recent swing high in a downtrend (or swing low in uptrend)
+- FVG (Fair Value Gap): 3-candle imbalance where first candle's high and third candle's low don't overlap (bullish), or vice versa (bearish)
+- Order Block: last bullish/bearish candle before a significant opposing move — where institutional orders rest
+
+Be specific with price levels. Be concise and direct."""
+
+
+def analyze_stock_my_strategy(ticker: str, info: dict, history_summary: str, timeframe: str = "swing") -> str:
+    price  = info.get("currentPrice") or info.get("regularMarketPrice", "N/A")
+    high52 = info.get("fiftyTwoWeekHigh", "N/A")
+    low52  = info.get("fiftyTwoWeekLow", "N/A")
+    name   = info.get("longName", ticker)
+
+    user_msg = f"""Apply my SMC strategy to analyze {name} ({ticker}) for a {timeframe} trade.
+
+SNAPSHOT:
+  Current Price: ${price} | 52w Range: ${low52} – ${high52}
+
+RECENT PRICE ACTION:
+  {history_summary}
+
+Provide:
+1. Trend — Bullish or Bearish with reasoning based on recent price structure
+2. Key levels — Day High, Day Low, and major POIs (with approximate prices)
+3. Inducement zones — where liquidity may be swept before the real move
+4. Potential setup — if a key level breaks, describe the CHOCH to watch for and the FVG/Order Block entry zone
+5. Invalidation — what price action would invalidate the setup
+6. Bias: Bullish / Bearish / Neutral + one-line trade idea"""
+
+    return _ask(MY_STRATEGY_SYSTEM, user_msg, max_tokens=1200)
 
 
 # ─── Stock Analysis ───────────────────────────────────────────────────────────

@@ -22,7 +22,7 @@ class Config:
     STOCKS_PROVIDER: str = os.getenv("STOCKS_PROVIDER", "yahoo")     # "yahoo" | "finnhub" | "questrade"
 
     # Default futures contracts to track
-    FUTURES_WATCHLIST: list = ["MES=F", "MNQ=F", "ES=F", "NQ=F", "YM=F", "RTY=F"]
+    FUTURES_WATCHLIST: list = ["ES=F", "NQ=F"]
 
     # Claude model
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")

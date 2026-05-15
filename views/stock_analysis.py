@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 from providers import stocks as stock_provider
-from ai import claude
+from ai.claude import analyze_stock, analyze_stock_my_strategy, analyze_earnings
 from config import Config
 
 
@@ -105,7 +105,7 @@ def render():
     with col1:
         ticker = st.text_input("Ticker symbol", placeholder="e.g. AAPL").upper().strip()
     with col2:
-        analysis_type = st.selectbox("Analysis type", ["Technical & Fundamental", "Earnings Report"])
+        analysis_type = st.selectbox("Analysis type", ["My Strategy", "Technical & Fundamental", "Earnings Report"])
     with col3:
         timeframe = st.selectbox("Timeframe", ["Day Trade", "Swing", "Mid-Term", "Long-Term"])
 
@@ -145,13 +145,22 @@ def render():
         st.warning("Add your Anthropic API key in Settings to enable AI analysis.")
         return
 
-    if analysis_type == "Technical & Fundamental":
+    if analysis_type == "My Strategy":
+        st.subheader("My Strategy (SMC) Analysis")
+        if st.button("Analyze", type="primary"):
+            summary = _history_summary(df)
+            tf_key  = timeframe.split()[0].lower()
+            with st.spinner(f"Applying your strategy to {ticker}…"):
+                result = analyze_stock_my_strategy(ticker, info, summary, tf_key)
+            st.markdown(result)
+
+    elif analysis_type == "Technical & Fundamental":
         st.subheader("AI Analysis")
         if st.button("Analyze", type="primary"):
             summary = _history_summary(df)
             tf_key  = timeframe.split()[0].lower()
             with st.spinner(f"Claude is analyzing {ticker}…"):
-                result = claude.analyze_stock(ticker, info, summary, tf_key)
+                result = analyze_stock(ticker, info, summary, tf_key)
             st.markdown(result)
 
     else:  # Earnings Report
@@ -160,7 +169,7 @@ def render():
             with st.spinner(f"Fetching earnings data for {ticker}…"):
                 earnings = stock_provider.get_earnings(ticker)
             with st.spinner("Claude is analyzing the earnings…"):
-                result = claude.analyze_earnings(ticker, earnings, info)
+                result = analyze_earnings(ticker, earnings, info)
             st.markdown(result)
 
             # Show raw earnings table if available
