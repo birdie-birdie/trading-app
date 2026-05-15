@@ -52,6 +52,54 @@ Definitions to apply:
 Be concise and direct. Use bullet points. Give specific price levels where possible."""
 
 
+def generate_morning_brief_ict(futures_data: list, economic_events: list, market_news: list, config: dict) -> str:
+    rules = _build_ict_rules(config)
+
+    futures_block = "\n".join(
+        f"  {f['symbol']}: {f['price']} ({f['change_pct']:+.2f}%)"
+        for f in futures_data if "error" not in f
+    ) or "  No futures data available."
+
+    events_block = "\n".join(
+        f"  {e.get('time','')[:16]}  [{_impact(e)}]  {e.get('event','')}"
+        for e in economic_events[:6]
+    ) or "  No major economic events scheduled."
+
+    news_block = "\n".join(
+        f"  - {n.get('headline', '')}"
+        for n in market_news[:5]
+    ) or "  No news available."
+
+    system = f"""You are my personal ICT (Inner Circle Trader) analyst for ES and NQ futures.
+Apply only the rules I provide — do not add rules that are not listed.
+Be specific with price levels. Use ICT terminology precisely.
+Format output with clear sections and bullet points.
+
+MY ACTIVE ICT RULES:
+{rules}"""
+
+    user_msg = f"""PRE-MARKET DATA:
+{futures_block}
+
+TODAY'S ECONOMIC EVENTS:
+{events_block}
+
+LATEST MARKET NEWS:
+{news_block}
+
+Apply my ICT strategy and provide the morning brief covering:
+1. Market Structure — current HH/HL or LH/LL structure for ES and NQ
+2. Dealing Range — identify today's range; is price in Premium or Discount?
+3. Killzone — which killzone is active or upcoming? What phase of PO3?
+4. Judas Swing — was there a false open move? Direction?
+5. Liquidity — key resting stops to watch (equal highs/lows, swing points)
+6. Setup — FVG or Order Block entry zone, OTE Fibonacci level if applicable
+7. Economic event risk — events that could act as catalysts or invalidate setups
+8. Session bias for ES and NQ — Bullish / Bearish / No Setup + one actionable insight"""
+
+    return _ask(system, user_msg, max_tokens=1500)
+
+
 def generate_morning_brief(futures_data: list, economic_events: list, market_news: list) -> str:
     futures_block = "\n".join(
         f"  {f['symbol']}: {f['price']} ({f['change_pct']:+.2f}%)"

@@ -291,7 +291,7 @@ def render():
     with col2:
         analysis_type = st.selectbox(
             "Analysis type",
-            ["My SMC", "My ICT", "Technical & Fundamental", "Earnings Report"],
+            ["My ICT", "My SMC", "Technical & Fundamental", "Earnings Report"],
         )
     with col3:
         timeframe = st.selectbox("Timeframe", ["Day Trade", "Swing", "Mid-Term", "Long-Term"])

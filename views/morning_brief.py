@@ -1,9 +1,20 @@
+import json
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from pathlib import Path
 from config import Config
 from providers import yahoo, finnhub_client
 from ai import claude
+
+ICT_CONFIG_FILE = Path(__file__).parent.parent / "ict_config.json"
+
+
+def _load_ict_config() -> dict:
+    try:
+        return json.loads(ICT_CONFIG_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
 
 def _futures_quotes() -> list:
@@ -106,9 +117,19 @@ def render():
         st.warning("Add your Anthropic API key in Settings to enable AI analysis.")
         return
 
+    strategy = st.selectbox(
+        "Analysis strategy",
+        ["My ICT", "My SMC"],
+        help="Which strategy framework Claude should apply to the brief",
+    )
+
     if st.button("Generate Morning Brief", type="primary"):
         events  = finnhub_client.get_economic_calendar(Config.FINNHUB_API_KEY) if services["finnhub"] else []
         news    = finnhub_client.get_market_news(Config.FINNHUB_API_KEY) if services["finnhub"] else []
         with st.spinner("Claude is analyzing the markets…"):
-            brief = claude.generate_morning_brief(futures_data, events, news)
+            if strategy == "My ICT":
+                cfg   = _load_ict_config()
+                brief = claude.generate_morning_brief_ict(futures_data, events, news, cfg)
+            else:
+                brief = claude.generate_morning_brief(futures_data, events, news)
         st.markdown(brief.replace("$", r"\$"))
