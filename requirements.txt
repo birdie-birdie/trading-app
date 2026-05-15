@@ -7,6 +7,7 @@ finnhub-python>=2.4.20
 python-dotenv>=1.0.0
 ta>=0.11.0
 requests>=2.31.0
+httpx>=0.27.0
 # project-x-py requires uvloop which does not support Windows.
 # Uncomment when running on Linux/macOS or when TopstepX/ProjectX integration is needed.
 # project-x-py>=3.3.4

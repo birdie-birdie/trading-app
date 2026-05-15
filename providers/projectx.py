@@ -83,25 +83,56 @@ def _run_async(coro):
 
 
 async def _fetch_quotes_async(contracts: list[str], username: str, api_key: str) -> list[dict]:
-    """Fetch today's OHLCV for each contract using 1-minute bars."""
-    from project_x_py.client import ProjectX
+    """Fetch today's OHLCV for each contract via direct HTTP (no SDK dependency)."""
+    now   = datetime.datetime.now(datetime.timezone.utc)
+    start = now - datetime.timedelta(days=2)
 
-    async with ProjectX(username=username, api_key=api_key) as client:
-        await client.authenticate()
+    async with httpx.AsyncClient(base_url=_BASE_URL, timeout=15) as http:
+        # Authenticate
+        resp = await http.post("/Auth/loginKey", json={"userName": username, "apiKey": api_key})
+        body = resp.json()
+        if not body.get("success"):
+            raise Exception(f"TopstepX auth failed (errorCode={body.get('errorCode')})")
+        token   = body["token"]
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
         results = []
         for contract in contracts:
             try:
-                bars = await client.get_bars(contract, days=1, interval=1)
-                if bars is None or len(bars) == 0:
+                # Resolve contract ID
+                cr = await http.post(
+                    "/Contract/search",
+                    json={"searchText": contract, "live": False},
+                    headers=headers,
+                )
+                found = cr.json().get("contracts", [])
+                if not found:
+                    results.append({"contract": contract, "error": "contract not found"})
+                    continue
+                contract_id = found[0]["id"]
+
+                # Fetch 1-min bars for today
+                br = await http.post("/History/retrieveBars", json={
+                    "contractId":        contract_id,
+                    "live":              False,
+                    "startTime":         start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "endTime":           now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "unit":              2,
+                    "unitNumber":        1,
+                    "limit":             2000,
+                    "includePartialBar": True,
+                }, headers=headers)
+
+                bars = br.json().get("bars", [])
+                if not bars:
                     results.append({"contract": contract, "error": "no data"})
                     continue
-                last   = bars.row(-1, named=True)
-                first  = bars.row(0,  named=True)
-                close  = float(last["close"])
-                open_  = float(first["open"])
-                high   = float(bars["high"].max())
-                low    = float(bars["low"].min())
-                volume = int(bars["volume"].sum())
+
+                close  = float(bars[-1]["c"])
+                open_  = float(bars[0]["o"])
+                high   = max(float(b["h"]) for b in bars)
+                low    = min(float(b["l"]) for b in bars)
+                volume = sum(int(b["v"]) for b in bars)
                 results.append({
                     "contract": contract,
                     "close":    close,
@@ -112,7 +143,8 @@ async def _fetch_quotes_async(contracts: list[str], username: str, api_key: str)
                 })
             except Exception as exc:
                 results.append({"contract": contract, "error": str(exc)})
-        return results
+
+    return results
 
 
 def get_multiple_quotes(tickers: list, username: str, api_key: str) -> list:
