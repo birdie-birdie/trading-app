@@ -290,19 +290,26 @@ def _futures_quote(ticker: str, services: dict) -> dict:
         results = projectx.get_multiple_quotes(
             [ticker], Config.PROJECTX_USERNAME, Config.PROJECTX_API_KEY
         )
-        return results[0] if results else {"symbol": ticker, "error": "no data"}
+        quote = results[0] if results else {}
+        if quote and "error" not in quote:
+            return quote
     return yahoo.get_quote(ticker)
 
 
 def _futures_key_metrics(quote: dict):
+    def _fmt(val):
+        if val is None or val == 0 or val == 0.0:
+            return "—"
+        return f"{val:,.2f}"
+
     cols = st.columns(4)
-    chg_pct = quote.get("change_pct", 0)
-    chg_str = f"{chg_pct:+.2f}%" if isinstance(chg_pct, (int, float)) else "—"
+    chg_pct = quote.get("change_pct")
+    chg_str = f"{chg_pct:+.2f}%" if chg_pct else "—"
     metrics = [
-        ("Price",    str(quote.get("price",  "—"))),
+        ("Price",    _fmt(quote.get("price"))),
         ("Change",   chg_str),
-        ("Day High", str(quote.get("high",   "—"))),
-        ("Day Low",  str(quote.get("low",    "—"))),
+        ("Day High", _fmt(quote.get("high"))),
+        ("Day Low",  _fmt(quote.get("low"))),
     ]
     for i, (label, val) in enumerate(metrics):
         cols[i].metric(label, val)
@@ -336,7 +343,10 @@ def render():
         timeframe = st.selectbox("Timeframe", ["Day Trade", "Swing", "Mid-Term", "Long-Term"])
 
     if instrument_type == "Futures":
-        st.caption(f"Quotes: {_futures_provider_name(services)}  |  Charts: Yahoo Finance (historical)")
+        provider_note = _futures_provider_name(services)
+        if provider_note == "Yahoo Finance":
+            provider_note += " (delayed — configure ProjectX for real-time)"
+        st.caption(f"Quotes: {provider_note}  |  Charts: Yahoo Finance (historical)")
     else:
         st.caption(f"Quotes: {active_provider()}  |  Charts: Yahoo Finance (historical)")
 

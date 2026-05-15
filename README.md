@@ -35,7 +35,7 @@ An AI-powered trading assistant for **ES / NQ index futures day trading** and **
 |---|---|
 | **Morning Brief** | Pre-market ES/NQ snapshot, today's economic events, market news, and an AI session outlook — choose **My ICT** or **My SMC** strategy before generating. Active futures provider shown in caption. |
 | **Watchlist** | Manage your U.S. stock watchlist; get AI trading suggestions ranked by timeframe |
-| **Stock Analysis** | Analyze **Stocks** or **Futures** (ES=F, NQ=F, MES=F…) — choose instrument type, then run **My ICT** *(default)*, My SMC, technical/fundamental, or earnings analysis with VWAP chart and visual entry map. Active quotes provider shown in caption. |
+| **Stock Analysis** | Analyze **Stocks** or **Futures** (ES=F, NQ=F, MES=F…) — choose instrument type, then run **My ICT** *(default)*, My SMC, technical/fundamental, or earnings analysis with VWAP chart and visual entry map. Active quotes provider shown in caption; futures quotes note delay unless ProjectX is configured. |
 | **Settings** | Configure all API keys and provider preferences through the UI |
 
 ---
@@ -275,7 +275,7 @@ streamlit run app.py --server.port 8502
 
 - Active **futures provider** (Yahoo Finance or ProjectX) shown in the page caption
 - Tracks **ES and NQ only** (focused on the contracts you trade)
-- Futures table with live prices, change %, high/low — **↺ Refresh** button to pull latest quotes on demand
+- Futures table with live prices, change %, high/low — **↺ Refresh** button re-fetches quotes on demand (quotes always refresh on every page interaction too)
 - Economic events for today — color-coded by impact (High / Medium / Low)
 - Latest market news headlines with source links
 - Choose **Analysis strategy** — **My ICT** *(default)* or **My SMC** — before generating

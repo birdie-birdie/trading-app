@@ -40,18 +40,14 @@ def render():
     )
 
     # ── Futures Overview ──────────────────────────────────────────────────────
-    st.subheader("Index Futures")
-    if "mb_futures_data" not in st.session_state:
-        with st.spinner("Fetching futures data…"):
-            st.session_state.mb_futures_data = _futures_quotes()
-
     col_hdr, col_refresh = st.columns([6, 1])
+    with col_hdr:
+        st.subheader("Index Futures")
     with col_refresh:
-        if st.button("↺ Refresh", help="Fetch latest quotes"):
-            with st.spinner("Refreshing…"):
-                st.session_state.mb_futures_data = _futures_quotes()
+        st.button("↺ Refresh", help="Click to fetch latest quotes")
 
-    futures_data = st.session_state.mb_futures_data
+    with st.spinner("Fetching futures data…"):
+        futures_data = _futures_quotes()
 
     if futures_data:
         rows = []
