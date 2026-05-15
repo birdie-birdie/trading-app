@@ -426,7 +426,8 @@ Deploy to Google Cloud Run to use a custom domain (e.g. `trade.alleasier.ca`).
 | AI buttons do nothing | Verify `ANTHROPIC_API_KEY` is set and valid |
 | Economic calendar is empty | Check `FINNHUB_API_KEY` at finnhub.io |
 | Entry map not showing | Requires Anthropic API key; Claude generates the levels |
-| ProjectX connection fails | Confirm your API subscription is active and credentials are correct |
+| ProjectX connection fails | Confirm your API subscription is active and credentials are correct; ensure `project-x-py` is installed (`pip install project-x-py --no-deps`) |
+| `uvloop` install error on Windows | Install with `--no-deps`: `pip install project-x-py --no-deps` |
 | Port 8501 already in use | `streamlit run app.py --server.port 8502` |
 | Settings changes not applied | Restart the app after saving new API keys |
 | Analysis disappears on interact | Fixed via session_state — analysis persists per ticker |
