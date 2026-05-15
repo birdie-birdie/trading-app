@@ -1,11 +1,27 @@
+import json
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import anthropic
+from pathlib import Path
 from providers import stocks as stock_provider
-from ai.claude import analyze_stock, analyze_stock_my_strategy, analyze_earnings, get_smc_entry_levels
+from ai.claude import (analyze_stock, analyze_stock_my_strategy, analyze_earnings,
+                       get_smc_entry_levels, analyze_ict, get_ict_entry_levels)
 from config import Config
+
+ICT_CONFIG_FILE = Path(__file__).parent.parent / "ict_config.json"
+
+
+def _load_ict_config() -> dict:
+    try:
+        return json.loads(ICT_CONFIG_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_ict_config(cfg: dict):
+    ICT_CONFIG_FILE.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
 
 def _claude_error(e: Exception) -> None:
@@ -275,7 +291,7 @@ def render():
     with col2:
         analysis_type = st.selectbox(
             "Analysis type",
-            ["My Strategy", "Technical & Fundamental", "Earnings Report"],
+            ["My SMC", "My ICT", "Technical & Fundamental", "Earnings Report"],
         )
     with col3:
         timeframe = st.selectbox("Timeframe", ["Day Trade", "Swing", "Mid-Term", "Long-Term"])
@@ -319,12 +335,12 @@ def render():
 
     tf_key = timeframe.split()[0].lower()
 
-    if analysis_type == "My Strategy":
-        st.subheader("My Strategy (SMC) Analysis")
+    if analysis_type == "My SMC":
+        st.subheader("My SMC Analysis")
         if st.button("Analyze", type="primary"):
             summary = _history_summary(df)
             try:
-                with st.spinner(f"Applying your strategy to {ticker}…"):
+                with st.spinner(f"Applying SMC strategy to {ticker}…"):
                     result = analyze_stock_my_strategy(ticker, info, summary, tf_key)
                 st.session_state[f"smc_result_{ticker}"] = result
 
@@ -334,9 +350,127 @@ def render():
             except Exception as e:
                 _claude_error(e)
 
-        # Persist analysis across reruns
         result = st.session_state.get(f"smc_result_{ticker}")
         levels = st.session_state.get(f"smc_levels_{ticker}")
+
+        if result:
+            _md(result)
+        if levels:
+            st.subheader("Entry Map")
+            _smc_entry_chart(df, levels, ticker)
+
+    elif analysis_type == "My ICT":
+        st.subheader("My ICT Analysis")
+
+        cfg = _load_ict_config()
+
+        with st.expander("ICT Strategy Rules", expanded=False):
+            st.caption("Toggle and tune your ICT rules. Click Save to persist changes.")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**Market Structure**")
+                cfg["market_structure"]["enabled"] = st.toggle(
+                    "Market Structure", value=cfg["market_structure"]["enabled"], key="ict_ms")
+                st.markdown("**Power of Three (PO3)**")
+                cfg["power_of_three"]["enabled"] = st.toggle(
+                    "Power of Three", value=cfg["power_of_three"]["enabled"], key="ict_po3")
+                st.markdown("**Premium / Discount**")
+                cfg["premium_discount"]["enabled"] = st.toggle(
+                    "Premium / Discount", value=cfg["premium_discount"]["enabled"], key="ict_pd")
+                st.markdown("**Judas Swing**")
+                cfg["judas_swing"]["enabled"] = st.toggle(
+                    "Judas Swing", value=cfg["judas_swing"]["enabled"], key="ict_js")
+                st.markdown("**Order Block**")
+                cfg["order_block"]["enabled"] = st.toggle(
+                    "Order Block", value=cfg["order_block"]["enabled"], key="ict_ob")
+                st.markdown("**Breaker Block**")
+                cfg["breaker_block"]["enabled"] = st.toggle(
+                    "Breaker Block", value=cfg["breaker_block"]["enabled"], key="ict_bb")
+
+            with col2:
+                st.markdown("**Fair Value Gap (FVG)**")
+                cfg["fair_value_gap"]["enabled"] = st.toggle(
+                    "FVG", value=cfg["fair_value_gap"]["enabled"], key="ict_fvg")
+                if cfg["fair_value_gap"]["enabled"]:
+                    cfg["fair_value_gap"]["min_size_points"] = st.number_input(
+                        "Min FVG size (points)", min_value=0.25, max_value=20.0,
+                        value=float(cfg["fair_value_gap"]["min_size_points"]),
+                        step=0.25, key="ict_fvg_size")
+
+                st.markdown("**OTE (Optimal Trade Entry)**")
+                cfg["optimal_trade_entry"]["enabled"] = st.toggle(
+                    "OTE", value=cfg["optimal_trade_entry"]["enabled"], key="ict_ote")
+                if cfg["optimal_trade_entry"]["enabled"]:
+                    ote_low, ote_high = st.slider(
+                        "Fibonacci retracement zone (%)", min_value=50, max_value=95,
+                        value=(int(cfg["optimal_trade_entry"]["fib_low"] * 100),
+                               int(cfg["optimal_trade_entry"]["fib_high"] * 100)),
+                        key="ict_ote_range")
+                    cfg["optimal_trade_entry"]["fib_low"]  = ote_low  / 100
+                    cfg["optimal_trade_entry"]["fib_high"] = ote_high / 100
+
+                st.markdown("**Liquidity**")
+                cfg["liquidity"]["enabled"] = st.toggle(
+                    "Liquidity", value=cfg["liquidity"]["enabled"], key="ict_liq")
+                if cfg["liquidity"]["enabled"]:
+                    cfg["liquidity"]["watch_equal_highs"]  = st.checkbox("Equal Highs",  value=cfg["liquidity"]["watch_equal_highs"],  key="ict_liq_eh")
+                    cfg["liquidity"]["watch_equal_lows"]   = st.checkbox("Equal Lows",   value=cfg["liquidity"]["watch_equal_lows"],   key="ict_liq_el")
+                    cfg["liquidity"]["watch_swing_points"] = st.checkbox("Swing Points", value=cfg["liquidity"]["watch_swing_points"], key="ict_liq_sp")
+
+            st.markdown("**Killzones** (all times ET)")
+            cfg["killzones"]["enabled"] = st.toggle(
+                "Enable Killzones", value=cfg["killzones"]["enabled"], key="ict_kz")
+            if cfg["killzones"]["enabled"]:
+                kc1, kc2, kc3 = st.columns(3)
+                with kc1:
+                    cfg["killzones"]["london_open"]["enabled"] = st.checkbox(
+                        f"London Open ({cfg['killzones']['london_open']['start']}–{cfg['killzones']['london_open']['end']})",
+                        value=cfg["killzones"]["london_open"]["enabled"], key="ict_kz_lo")
+                with kc2:
+                    cfg["killzones"]["new_york_open"]["enabled"] = st.checkbox(
+                        f"NY Open ({cfg['killzones']['new_york_open']['start']}–{cfg['killzones']['new_york_open']['end']})",
+                        value=cfg["killzones"]["new_york_open"]["enabled"], key="ict_kz_ny")
+                with kc3:
+                    cfg["killzones"]["london_close"]["enabled"] = st.checkbox(
+                        f"London Close ({cfg['killzones']['london_close']['start']}–{cfg['killzones']['london_close']['end']})",
+                        value=cfg["killzones"]["london_close"]["enabled"], key="ict_kz_lc")
+
+            st.markdown("**Risk Management**")
+            cfg["risk_management"]["enabled"] = st.toggle(
+                "Risk Management", value=cfg["risk_management"]["enabled"], key="ict_rm")
+            if cfg["risk_management"]["enabled"]:
+                rm1, rm2 = st.columns(2)
+                with rm1:
+                    cfg["risk_management"]["min_rr_ratio"] = st.number_input(
+                        "Min R:R ratio", min_value=1.0, max_value=10.0,
+                        value=float(cfg["risk_management"]["min_rr_ratio"]),
+                        step=0.5, key="ict_rm_rr")
+                with rm2:
+                    cfg["risk_management"]["risk_per_trade_pct"] = st.number_input(
+                        "Risk per trade (%)", min_value=0.1, max_value=5.0,
+                        value=float(cfg["risk_management"]["risk_per_trade_pct"]),
+                        step=0.1, key="ict_rm_risk")
+
+            if st.button("Save Rules", key="ict_save"):
+                _save_ict_config(cfg)
+                st.success("ICT rules saved.")
+
+        if st.button("Analyze", type="primary", key="ict_analyze"):
+            summary = _history_summary(df)
+            try:
+                with st.spinner(f"Applying ICT strategy to {ticker}…"):
+                    result = analyze_ict(ticker, info, summary, tf_key, cfg)
+                st.session_state[f"ict_result_{ticker}"] = result
+
+                with st.spinner("Building entry map…"):
+                    levels = get_ict_entry_levels(ticker, info, summary, cfg)
+                st.session_state[f"ict_levels_{ticker}"] = levels
+            except Exception as e:
+                _claude_error(e)
+
+        result = st.session_state.get(f"ict_result_{ticker}")
+        levels = st.session_state.get(f"ict_levels_{ticker}")
 
         if result:
             _md(result)

@@ -237,6 +237,132 @@ Provide:
     return _ask(EARNINGS_SYSTEM, user_msg, max_tokens=1200)
 
 
+# ─── My ICT Analysis ─────────────────────────────────────────────────────────
+
+ICT_SYSTEM = """You are my personal ICT (Inner Circle Trader) analyst.
+Apply only the rules I provide — do not add rules that are not listed.
+Be specific with price levels. Use ICT terminology precisely.
+Format output with clear sections and bullet points."""
+
+
+def _build_ict_rules(config: dict) -> str:
+    rules = []
+
+    if config.get("market_structure", {}).get("enabled"):
+        rules.append("• Market Structure: Identify HH/HL (bullish) or LH/LL (bearish) — note most recent shift")
+
+    kz = config.get("killzones", {})
+    if kz.get("enabled"):
+        active = []
+        if kz.get("london_open",   {}).get("enabled"):
+            t = kz["london_open"];   active.append(f"London Open ({t['start']}–{t['end']} ET)")
+        if kz.get("new_york_open", {}).get("enabled"):
+            t = kz["new_york_open"]; active.append(f"NY Open ({t['start']}–{t['end']} ET)")
+        if kz.get("london_close",  {}).get("enabled"):
+            t = kz["london_close"];  active.append(f"London Close ({t['start']}–{t['end']} ET)")
+        if active:
+            rules.append(f"• Killzones: Prefer entries during — {', '.join(active)}")
+
+    if config.get("power_of_three", {}).get("enabled"):
+        rules.append("• Power of Three (PO3): Identify which phase is active — Accumulation / Manipulation / Distribution")
+
+    if config.get("premium_discount", {}).get("enabled"):
+        rules.append("• Premium/Discount: Buy only in discount (<50% of dealing range), sell only in premium (>50%)")
+
+    if config.get("optimal_trade_entry", {}).get("enabled"):
+        ote = config["optimal_trade_entry"]
+        rules.append(f"• OTE: Enter on {int(ote['fib_low']*100)}%–{int(ote['fib_high']*100)}% Fibonacci retracement after displacement")
+
+    if config.get("fair_value_gap", {}).get("enabled"):
+        fvg = config["fair_value_gap"]
+        rules.append(f"• FVG: Look for 3-candle imbalances ≥{fvg['min_size_points']} points. Enter on retracement into gap")
+
+    if config.get("order_block", {}).get("enabled"):
+        rules.append("• Order Block: Last opposing candle before significant displacement — enter on retest")
+
+    if config.get("breaker_block", {}).get("enabled"):
+        rules.append("• Breaker Block: Failed order block that flips — previous support becomes resistance and vice versa")
+
+    liq = config.get("liquidity", {})
+    if liq.get("enabled"):
+        targets = []
+        if liq.get("watch_equal_highs"):  targets.append("equal highs")
+        if liq.get("watch_equal_lows"):   targets.append("equal lows")
+        if liq.get("watch_swing_points"): targets.append("swing highs/lows")
+        if targets:
+            rules.append(f"• Liquidity: Watch for stop hunts at {', '.join(targets)} before real move")
+
+    if config.get("judas_swing", {}).get("enabled"):
+        rules.append("• Judas Swing: False move at session open to trap retail before real directional move")
+
+    rm = config.get("risk_management", {})
+    if rm.get("enabled"):
+        rules.append(f"• Risk Management: Minimum R:R {rm['min_rr_ratio']}:1 | Risk {rm['risk_per_trade_pct']}% per trade")
+
+    return "\n".join(rules) if rules else "No rules enabled."
+
+
+def analyze_ict(instrument: str, info: dict, history_summary: str, timeframe: str, config: dict) -> str:
+    price = info.get("currentPrice") or info.get("regularMarketPrice", "N/A")
+    name  = info.get("longName", instrument)
+    rules = _build_ict_rules(config)
+
+    user_msg = f"""Apply my ICT strategy to analyze {name} ({instrument}) for a {timeframe} trade.
+
+Current Price: ${price}
+Recent Price Action: {history_summary}
+
+MY ACTIVE ICT RULES:
+{rules}
+
+Provide analysis in these sections:
+1. Market Structure — current structure, most recent swing points with prices
+2. Dealing Range — identify the range high/low; is price in Premium or Discount?
+3. Killzone — is current time inside an active killzone? Which phase of PO3?
+4. Judas Swing — was there a false move? In which direction?
+5. Liquidity — where are the resting stops (equal highs/lows, swing points)?
+6. Setup — describe the ICT entry setup:
+   - Which liquidity is being targeted?
+   - FVG zone (prices) or Order Block zone (prices) for entry
+   - OTE Fibonacci zone if applicable
+7. Trade Plan — Entry zone, Stop Loss, Target 1, Target 2, R:R
+8. Bias: Bullish / Bearish / No Setup — one line reason"""
+
+    return _ask(ICT_SYSTEM, user_msg, max_tokens=1500)
+
+
+def get_ict_entry_levels(instrument: str, info: dict, history_summary: str, config: dict) -> dict:
+    """Returns structured ICT entry levels as JSON for chart plotting."""
+    price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
+    rules = _build_ict_rules(config)
+
+    user_msg = f"""ICT analysis of {instrument} at ${price}.
+Recent price action: {history_summary}
+Active rules: {rules}
+
+Return ONLY valid JSON, no other text:
+{{
+  "bias": "Bullish",
+  "order_block": {{"high": 0.0, "low": 0.0, "type": "Bullish"}},
+  "fvg": {{"high": 0.0, "low": 0.0, "type": "Bullish"}},
+  "choch_level": 0.0,
+  "entry": 0.0,
+  "stop_loss": 0.0,
+  "target": 0.0
+}}
+All prices must be realistic relative to current price ${price}."""
+
+    import json, re
+    raw = _ask(ICT_SYSTEM, user_msg, max_tokens=400)
+    try:
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return {}
+
+
 # ─── SMC Structured Entry Levels ─────────────────────────────────────────────
 
 def get_smc_entry_levels(ticker: str, info: dict, history_summary: str, timeframe: str) -> dict:

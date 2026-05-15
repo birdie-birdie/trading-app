@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "market_structure": {
+    "enabled": true
+  },
+  "killzones": {
+    "enabled": true,
+    "london_open":  {"enabled": true,  "start": "02:00", "end": "05:00"},
+    "new_york_open":{"enabled": true,  "start": "07:00", "end": "09:00"},
+    "london_close": {"enabled": false, "start": "10:00", "end": "12:00"}
+  },
+  "power_of_three": {
+    "enabled": true
+  },
+  "premium_discount": {
+    "enabled": true
+  },
+  "optimal_trade_entry": {
+    "enabled": true,
+    "fib_low": 0.62,
+    "fib_high": 0.79
+  },
+  "fair_value_gap": {
+    "enabled": true,
+    "min_size_points": 2.0
+  },
+  "order_block": {
+    "enabled": true
+  },
+  "breaker_block": {
+    "enabled": false
+  },
+  "liquidity": {
+    "enabled": true,
+    "watch_equal_highs":  true,
+    "watch_equal_lows":   true,
+    "watch_swing_points": true
+  },
+  "judas_swing": {
+    "enabled": true
+  },
+  "risk_management": {
+    "enabled": true,
+    "min_rr_ratio": 2.0,
+    "risk_per_trade_pct": 1.0
+  }
+}
