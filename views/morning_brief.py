@@ -17,27 +17,22 @@ def _load_ict_config() -> dict:
         return {}
 
 
-def _futures_quotes() -> list:
+def _futures_quotes() -> tuple[list, str]:
+    """Returns (quotes, provider_name). Falls back to Yahoo if ProjectX fails."""
     if Config.FUTURES_PROVIDER == "projectx" and Config.validate()["projectx"]:
         from providers import projectx
-        return projectx.get_multiple_quotes(
+        quotes = projectx.get_multiple_quotes(
             Config.FUTURES_WATCHLIST, Config.PROJECTX_USERNAME, Config.PROJECTX_API_KEY
         )
-    return yahoo.get_multiple_quotes(Config.FUTURES_WATCHLIST)
+        if any("error" not in q for q in quotes):
+            return quotes, "ProjectX (real-time)"
+    quotes = yahoo.get_multiple_quotes(Config.FUTURES_WATCHLIST)
+    return quotes, "Yahoo Finance"
 
 
 def render():
     st.title("Morning Brief")
     services = Config.validate()
-    futures_provider = (
-        "ProjectX (real-time)"
-        if Config.FUTURES_PROVIDER == "projectx" and services["projectx"]
-        else "Yahoo Finance"
-    )
-    st.caption(
-        f"As of {datetime.now().strftime('%A, %B %d %Y  %H:%M')}"
-        f"  |  Futures: {futures_provider}"
-    )
 
     # ── Futures Overview ──────────────────────────────────────────────────────
     col_hdr, col_refresh = st.columns([6, 1])
@@ -47,7 +42,12 @@ def render():
         st.button("↺ Refresh", help="Click to fetch latest quotes")
 
     with st.spinner("Fetching futures data…"):
-        futures_data = _futures_quotes()
+        futures_data, futures_provider = _futures_quotes()
+
+    st.caption(
+        f"As of {datetime.now().strftime('%A, %B %d %Y  %H:%M')}"
+        f"  |  Futures: {futures_provider}"
+    )
 
     if futures_data:
         rows = []

@@ -273,7 +273,7 @@ streamlit run app.py --server.port 8502
 
 ### Morning Brief
 
-- Active **futures provider** (Yahoo Finance or ProjectX) shown in the page caption
+- Active **futures provider** shown in caption — reflects which provider *actually served* the quotes (ProjectX or Yahoo Finance fallback)
 - Tracks **ES and NQ only** (focused on the contracts you trade)
 - Futures table with live prices, change %, high/low — **↺ Refresh** button re-fetches quotes on demand (quotes always refresh on every page interaction too)
 - Economic events for today — color-coded by impact (High / Medium / Low)
