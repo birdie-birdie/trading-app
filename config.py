@@ -27,6 +27,10 @@ class Config:
     # Claude model
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
 
+    # Auth
+    APP_USERNAME: str = os.getenv("APP_USERNAME", "")
+    APP_PASSWORD: str = os.getenv("APP_PASSWORD", "")
+
     # App
     APP_TITLE: str = "Trading Intelligence Dashboard"
     REFRESH_INTERVAL: int = int(os.getenv("REFRESH_INTERVAL", "60"))
