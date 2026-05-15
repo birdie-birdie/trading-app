@@ -52,13 +52,30 @@ Definitions to apply:
 Be concise and direct. Use bullet points. Give specific price levels where possible."""
 
 
-def generate_morning_brief_ict(futures_data: list, economic_events: list, market_news: list, config: dict) -> str:
+def generate_morning_brief_ict(
+    futures_data: list,
+    economic_events: list,
+    market_news: list,
+    config: dict,
+    prior_sessions: dict | None = None,
+) -> str:
     rules = _build_ict_rules(config)
 
-    futures_block = "\n".join(
-        f"  {f['symbol']}: {f['price']} ({f['change_pct']:+.2f}%)"
-        for f in futures_data if "error" not in f
-    ) or "  No futures data available."
+    futures_lines = []
+    for f in futures_data:
+        if "error" in f:
+            continue
+        sym = f["symbol"]
+        line = f"  {sym}: {f['price']} ({f['change_pct']:+.2f}%)"
+        ps = (prior_sessions or {}).get(sym, {})
+        if ps.get("high") and ps.get("low"):
+            mid = round((ps["high"] + ps["low"]) / 2, 2)
+            line += (
+                f"  |  Prior RTH ({ps.get('date','')}):"
+                f" H={ps['high']}  L={ps['low']}  EQ={mid}"
+            )
+        futures_lines.append(line)
+    futures_block = "\n".join(futures_lines) or "  No futures data available."
 
     events_block = "\n".join(
         f"  {e.get('time','')[:16]}  [{_impact(e)}]  {e.get('event','')}"
@@ -72,13 +89,14 @@ def generate_morning_brief_ict(futures_data: list, economic_events: list, market
 
     system = f"""You are my personal ICT (Inner Circle Trader) analyst for ES and NQ futures.
 Apply only the rules I provide — do not add rules that are not listed.
+Use ONLY the prices provided in the pre-market data — do not estimate or invent price levels.
 Be specific with price levels. Use ICT terminology precisely.
 Format output with clear sections and bullet points.
 
 MY ACTIVE ICT RULES:
 {rules}"""
 
-    user_msg = f"""PRE-MARKET DATA:
+    user_msg = f"""PRE-MARKET DATA (use these exact prices — prior RTH H/L/EQ included):
 {futures_block}
 
 TODAY'S ECONOMIC EVENTS:
@@ -89,7 +107,7 @@ LATEST MARKET NEWS:
 
 Apply my ICT strategy and provide the morning brief covering:
 1. Market Structure — current HH/HL or LH/LL structure for ES and NQ
-2. Dealing Range — identify today's range; is price in Premium or Discount?
+2. Dealing Range — use the Prior RTH High/Low above as the reference range; state whether current price is in Premium (above EQ) or Discount (below EQ) with exact prices
 3. Killzone — which killzone is active or upcoming? What phase of PO3?
 4. Judas Swing — was there a false open move? Direction?
 5. Liquidity — key resting stops to watch (equal highs/lows, swing points)

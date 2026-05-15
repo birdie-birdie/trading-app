@@ -34,8 +34,17 @@ def render():
 
     # ── Futures Overview ──────────────────────────────────────────────────────
     st.subheader("Index Futures")
-    with st.spinner("Fetching futures data…"):
-        futures_data = _futures_quotes()
+    if "mb_futures_data" not in st.session_state:
+        with st.spinner("Fetching futures data…"):
+            st.session_state.mb_futures_data = _futures_quotes()
+
+    col_hdr, col_refresh = st.columns([6, 1])
+    with col_refresh:
+        if st.button("↺ Refresh", help="Fetch latest quotes"):
+            with st.spinner("Refreshing…"):
+                st.session_state.mb_futures_data = _futures_quotes()
+
+    futures_data = st.session_state.mb_futures_data
 
     if futures_data:
         rows = []
@@ -128,8 +137,12 @@ def render():
         news    = finnhub_client.get_market_news(Config.FINNHUB_API_KEY) if services["finnhub"] else []
         with st.spinner("Claude is analyzing the markets…"):
             if strategy == "My ICT":
-                cfg   = _load_ict_config()
-                brief = claude.generate_morning_brief_ict(futures_data, events, news, cfg)
+                cfg = _load_ict_config()
+                prior = {
+                    sym: yahoo.get_prior_session(sym)
+                    for sym in Config.FUTURES_WATCHLIST
+                }
+                brief = claude.generate_morning_brief_ict(futures_data, events, news, cfg, prior)
             else:
                 brief = claude.generate_morning_brief(futures_data, events, news)
         st.markdown(brief.replace("$", r"\$"))

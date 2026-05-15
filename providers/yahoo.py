@@ -41,6 +41,25 @@ def get_info(ticker: str) -> dict:
         return {}
 
 
+def get_prior_session(ticker: str) -> dict:
+    """Return the most recently completed daily session's OHLC for a ticker."""
+    try:
+        df = yf.Ticker(ticker).history(period="5d", interval="1d")
+        if df is None or df.empty:
+            return {}
+        # In pre-market the last row is the prior completed session;
+        # after the open it may be today's partial bar — use the second-to-last.
+        row = df.iloc[-1]
+        return {
+            "high":  round(float(row["High"]),  2),
+            "low":   round(float(row["Low"]),   2),
+            "close": round(float(row["Close"]), 2),
+            "date":  str(row.name.date()),
+        }
+    except Exception:
+        return {}
+
+
 def get_earnings(ticker: str) -> dict:
     t = yf.Ticker(ticker)
     result = {}
