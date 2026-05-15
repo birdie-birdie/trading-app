@@ -10,7 +10,18 @@ from ai.claude import (analyze_stock, analyze_stock_my_strategy, analyze_earning
                        get_smc_entry_levels, analyze_ict, get_ict_entry_levels)
 from config import Config
 
-ICT_CONFIG_FILE = Path(__file__).parent.parent / "ict_config.json"
+ICT_CONFIG_FILE  = Path(__file__).parent.parent / "ict_config.json"
+WATCHLIST_FILE   = Path(__file__).parent.parent / "watchlist.json"
+FUTURES_QUICKLIST = {
+    "ES=F":     "ES  —  S&P 500",
+    "NQ=F":     "NQ  —  Nasdaq 100",
+    "GC=F":     "GC  —  Gold",
+    "SI=F":     "SI  —  Silver",
+    "CL=F":     "CL  —  Crude Oil",
+    "USDCAD=X": "USD/CAD",
+    "EURUSD=X": "EUR/USD",
+    "CADCNY=X": "CAD/CNY",
+}
 
 
 def _load_ict_config() -> dict:
@@ -18,6 +29,13 @@ def _load_ict_config() -> dict:
         return json.loads(ICT_CONFIG_FILE.read_text(encoding="utf-8"))
     except Exception:
         return {}
+
+
+def _load_stock_watchlist() -> list[str]:
+    try:
+        return json.loads(WATCHLIST_FILE.read_text(encoding="utf-8")).get("stocks", [])
+    except Exception:
+        return []
 
 
 def _save_ict_config(cfg: dict):
@@ -104,10 +122,12 @@ def _candlestick_chart(ticker: str, period: str, interval: str, timeframe: str =
     title = f"{ticker}  |  {timeframe}  ({bar_label} bars)"
 
     # Skip non-trading periods to remove blank gaps
+    # Futures trade ~23/5 — don't apply the stock market hours (9:30–16:00) break
     intraday = interval in ["1m", "2m", "5m", "15m", "30m", "60m", "1h"]
-    rangebreaks = [dict(bounds=["sat", "mon"])]  # always skip weekends
-    if intraday and not prepost:
-        rangebreaks.append(dict(bounds=[16, 9.5], pattern="hour"))  # skip after-hours
+    is_futures = ticker.endswith("=F")
+    rangebreaks = [dict(bounds=["sat", "mon"])]  # skip weekends for all instruments
+    if intraday and not prepost and not is_futures:
+        rangebreaks.append(dict(bounds=[16, 9.5], pattern="hour"))  # skip stock after-hours
 
     fig.update_layout(
         title=title,
@@ -328,9 +348,21 @@ def render():
         instrument_type = st.selectbox("Instrument", ["Stock", "Futures"])
     with col1:
         if instrument_type == "Futures":
-            ticker = st.text_input("Symbol", placeholder="ES=F  NQ=F  MES=F…").upper().strip()
+            options = list(FUTURES_QUICKLIST.keys()) + ["Custom..."]
+            labels  = {**FUTURES_QUICKLIST, "Custom...": "Custom..."}
+            selected = st.selectbox("Symbol", options, format_func=lambda k: labels[k])
+            if selected == "Custom...":
+                ticker = st.text_input("Enter symbol", placeholder="YM=F  RTY=F  6E=F…").upper().strip()
+            else:
+                ticker = selected
         else:
-            ticker = st.text_input("Ticker symbol", placeholder="e.g. AAPL").upper().strip()
+            watchlist = _load_stock_watchlist()
+            options = watchlist + ["Custom..."]
+            selected = st.selectbox("Symbol", options)
+            if selected == "Custom...":
+                ticker = st.text_input("Enter ticker", placeholder="e.g. NVDA").upper().strip()
+            else:
+                ticker = selected
     with col2:
         if instrument_type == "Futures":
             analysis_type = st.selectbox("Analysis type", ["My ICT", "My SMC"])
@@ -346,7 +378,10 @@ def render():
         provider_note = _futures_provider_name(services)
         if provider_note == "Yahoo Finance":
             provider_note += " (delayed — configure ProjectX for real-time)"
-        st.caption(f"Quotes: {provider_note}  |  Charts: Yahoo Finance (historical)")
+            chart_note = "Yahoo Finance (delayed)"
+        else:
+            chart_note = "TopstepX (real-time)"
+        st.caption(f"Quotes: {provider_note}  |  Charts: {chart_note}")
     else:
         st.caption(f"Quotes: {active_provider()}  |  Charts: Yahoo Finance (historical)")
 

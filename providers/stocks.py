@@ -36,7 +36,13 @@ def get_earnings(symbol: str) -> dict:
 
 
 def get_history(symbol: str, period: str = "3mo", interval: str = "1d", prepost: bool = False):
-    """Historical OHLCV for charting — always uses yfinance (best free source)."""
+    """Historical OHLCV for charting. Futures route to TopstepX when configured."""
+    if (symbol.endswith("=F")
+            and Config.FUTURES_PROVIDER == "projectx"
+            and Config.PROJECTX_USERNAME
+            and Config.PROJECTX_API_KEY):
+        from providers import projectx
+        return projectx.get_history(symbol, period=period, interval=interval)
     return yahoo.get_history(symbol, period=period, interval=interval, prepost=prepost)
 
 

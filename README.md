@@ -35,7 +35,7 @@ An AI-powered trading assistant for **ES / NQ index futures day trading** and **
 |---|---|
 | **Morning Brief** | Pre-market ES/NQ snapshot, today's economic events, market news, and an AI session outlook — choose **My ICT** or **My SMC** strategy before generating. Active futures provider shown in caption. |
 | **Watchlist** | Manage your U.S. stock watchlist; get AI trading suggestions ranked by timeframe |
-| **Stock Analysis** | Analyze **Stocks** or **Futures** (ES=F, NQ=F, MES=F…) — choose instrument type, then run **My ICT** *(default)*, My SMC, technical/fundamental, or earnings analysis with VWAP chart and visual entry map. Active quotes provider shown in caption; futures quotes note delay unless ProjectX is configured. |
+| **Stock Analysis** | Analyze **Stocks** or **Futures** — pick from watchlist/quick-pick dropdown or type any symbol. Futures dropdown includes ES, NQ, Gold, Silver, Crude Oil, and major FX pairs. Run **My ICT** *(default)*, My SMC, technical/fundamental, or earnings analysis with VWAP chart and visual entry map. Charts use TopstepX real-time bars when ProjectX is configured — no 15-min delay. |
 | **Settings** | Configure all API keys and provider preferences through the UI |
 
 ---
@@ -150,16 +150,17 @@ Stock Analysis →  price history  →  VWAP chart
 
 ### Provider Matrix
 
-| Data | Default (free) | Real-time (free) | Real-time (paid) |
-|---|---|---|---|
-| Futures quotes | Yahoo Finance — ~15 min delay | — | ProjectX / TopstepX API |
-| Stock quotes | Yahoo Finance — ~15 min delay | **Finnhub** (same free key) | Questrade *(planned)* |
-| Stock charts | Yahoo Finance (historical OHLCV) | Yahoo Finance | Yahoo Finance |
-| Economic calendar | Finnhub free tier | — | — |
-| Market news | Finnhub free tier | — | — |
-| AI analysis | Claude (Anthropic) | — | — |
+| Data | Default (free) | Real-time (paid) |
+|---|---|---|
+| Futures quotes | Yahoo Finance — ~15 min delay | ProjectX / TopstepX API |
+| Futures charts | Yahoo Finance — ~15 min delay | **TopstepX real-time bars** (when `FUTURES_PROVIDER=projectx`) |
+| Stock quotes | Yahoo Finance — ~15 min delay | Finnhub (free, real-time) |
+| Stock charts | Yahoo Finance (historical OHLCV) | Yahoo Finance |
+| Economic calendar | Finnhub free tier | — |
+| Market news | Finnhub free tier | — |
+| AI analysis | Claude (Anthropic) | — |
 
-Switching providers is a one-line change in `.env` — no code edits required. Charts always use Yahoo Finance regardless of quote provider.
+Switching providers is a one-line change in `.env` — no code edits required.
 
 ---
 
@@ -294,8 +295,8 @@ streamlit run app.py --server.port 8502
 - Active **quotes provider** (Yahoo Finance, Finnhub, or Questrade) shown in the page caption
 
 1. Choose **Instrument** — **Stock** or **Futures**
-   - **Stock** — enter any U.S. ticker (e.g. `NVDA`, `AAPL`, `TSLA`); quotes via configured stock provider
-   - **Futures** — enter a futures symbol (e.g. `ES=F`, `NQ=F`, `MES=F`, `MNQ=F`); quotes via configured futures provider (Yahoo Finance or ProjectX). Shows price, change %, day high/low.
+   - **Stock** — pick from your watchlist dropdown or choose `Custom...` to type any ticker; quotes via configured stock provider
+   - **Futures** — quick-pick dropdown (ES, NQ, Gold, Silver, Crude Oil, USD/CAD, EUR/USD, CAD/CNY) or `Custom...` to type any symbol; charts use TopstepX real-time bars when ProjectX is configured
 2. Choose analysis type:
    - **My ICT** *(default)* — applies your configurable ICT ruleset. Expand **ICT Rules** to toggle/tune any of the 11 rule categories, then click **Save Rules** to persist them to `ict_config.json`. Only enabled rules are sent to Claude. Generates an **Entry Map chart** showing:
      - Order Block zone (shaded green/red)
@@ -340,16 +341,23 @@ streamlit run app.py --server.port 8502
 
 ## Futures Symbols Reference
 
-| Symbol (Yahoo) | Contract | Exchange |
-|---|---|---|
-| `ES=F` | E-mini S&P 500 | CME |
-| `NQ=F` | E-mini Nasdaq-100 | CME |
-| `MES=F` | Micro E-mini S&P 500 | CME |
-| `MNQ=F` | Micro E-mini Nasdaq-100 | CME |
-| `YM=F` | E-mini Dow Jones | CBOT |
-| `RTY=F` | E-mini Russell 2000 | CME |
+| Symbol (Yahoo) | Contract | Exchange | In dropdown |
+|---|---|---|---|
+| `ES=F` | E-mini S&P 500 | CME | ✓ |
+| `NQ=F` | E-mini Nasdaq-100 | CME | ✓ |
+| `GC=F` | Gold | COMEX | ✓ |
+| `SI=F` | Silver | COMEX | ✓ |
+| `CL=F` | Crude Oil (WTI) | NYMEX | ✓ |
+| `USDCAD=X` | USD/CAD | Forex | ✓ |
+| `EURUSD=X` | EUR/USD | Forex | ✓ |
+| `CADCNY=X` | CAD/CNY | Forex | ✓ |
+| `MES=F` | Micro E-mini S&P 500 | CME | Custom |
+| `MNQ=F` | Micro E-mini Nasdaq-100 | CME | Custom |
+| `YM=F` | E-mini Dow Jones | CBOT | Custom |
+| `RTY=F` | E-mini Russell 2000 | CME | Custom |
 
 > The morning brief tracks **ES and NQ** by default. Edit `FUTURES_WATCHLIST` in `config.py` to add more contracts.
+> GC, SI, and CL charts use TopstepX real-time bars when `FUTURES_PROVIDER=projectx`. Currency pairs (`=X`) always use Yahoo Finance.
 
 ---
 
@@ -359,9 +367,11 @@ Stocks persist in `watchlist.json`. Manage them via the UI or edit the file dire
 
 ```json
 {
-  "stocks": ["AAPL", "NVDA", "MSFT", "TSLA", "AMZN"]
+  "stocks": ["SPY", "QQQ", "AAPL", "NVDA", "MSFT", "TSLA", "AMZN", "META", "GOOGL", "PLTR", "AMD", "ORCL", "INTC", "SMR", "BBAI", "QUBT", "OPEN"]
 }
 ```
+
+The watchlist also populates the **Symbol dropdown** on the Stock Analysis page — any ticker added here appears in the dropdown automatically.
 
 ---
 
@@ -426,7 +436,7 @@ Deploy to Google Cloud Run to use a custom domain (e.g. `trade.alleasier.ca`).
 | AI buttons do nothing | Verify `ANTHROPIC_API_KEY` is set and valid |
 | Economic calendar is empty | Check `FINNHUB_API_KEY` at finnhub.io |
 | Entry map not showing | Requires Anthropic API key; Claude generates the levels |
-| ProjectX connection fails | Confirm your API subscription is active and credentials are correct; ensure `project-x-py` is installed (`pip install project-x-py --no-deps`) |
+| ProjectX connection fails | Run `python test_connection.py` to diagnose. Confirm `PROJECTX_USERNAME` and `PROJECTX_API_KEY` in `.env` match your TopstepX portal exactly (API key is separate from your login password). Charts fall back to Yahoo Finance automatically on auth failure. |
 | `uvloop` install error on Windows | Install with `--no-deps`: `pip install project-x-py --no-deps` |
 | Port 8501 already in use | `streamlit run app.py --server.port 8502` |
 | Settings changes not applied | Restart the app after saving new API keys |

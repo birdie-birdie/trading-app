@@ -1,11 +1,21 @@
 {
   "stocks": [
+    "SPY",
+    "QQQ",
     "SMR",
     "BBAI",
     "QUBT",
     "TSLA",
     "AAPL",
     "GOOGL",
-    "PLTR"
+    "PLTR",
+    "MSFT",
+    "NVDA",
+    "META",
+    "AMD",
+    "AMZN",
+    "INTC",
+    "ORCL",
+    "OPEN"
   ]
 }
