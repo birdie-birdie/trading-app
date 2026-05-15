@@ -1,7 +1,7 @@
 import json
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from config import Config
 from providers import yahoo, finnhub_client
@@ -44,8 +44,13 @@ def render():
     with st.spinner("Fetching futures data…"):
         futures_data, futures_provider = _futures_quotes()
 
+    try:
+        from zoneinfo import ZoneInfo
+        et = datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        et = datetime.now(timezone.utc)
     st.caption(
-        f"As of {datetime.now().strftime('%A, %B %d %Y  %H:%M')}"
+        f"As of {et.strftime('%A, %B %d %Y  %H:%M ET')}"
         f"  |  Futures: {futures_provider}"
     )
 
