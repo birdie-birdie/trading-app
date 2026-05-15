@@ -1,6 +1,6 @@
 # Trading Intelligence Dashboard
 
-An AI-powered trading assistant for **index futures day trading** (MES / MNQ) and **U.S. stock analysis** (swing to long-term). Built with Streamlit and Claude AI.
+An AI-powered trading assistant for **ES / NQ index futures day trading** and **U.S. stock analysis** (swing to long-term). Built with Streamlit and Claude AI, and tuned to a Smart Money Concepts (SMC) trading strategy.
 
 ---
 
@@ -8,10 +8,31 @@ An AI-powered trading assistant for **index futures day trading** (MES / MNQ) an
 
 | Page | What it does |
 |---|---|
-| **Morning Brief** | Pre-market futures snapshot, today's economic events, market news, and an AI-generated session outlook |
+| **Morning Brief** | Pre-market ES/NQ snapshot, today's economic events, market news, and an SMC-based AI session outlook |
 | **Watchlist** | Manage your U.S. stock watchlist; get AI trading suggestions ranked by timeframe |
-| **Stock Analysis** | On-demand technical + fundamental analysis, or earnings report interpretation, for any ticker |
+| **Stock Analysis** | On-demand SMC, technical/fundamental, or earnings analysis for any ticker — with VWAP chart and visual entry map |
 | **Settings** | Configure all API keys and provider preferences through the UI |
+
+---
+
+## My Trading Strategy (SMC — Smart Money Concepts)
+
+The AI analysis throughout this app is tuned to the following strategy for **ES and NQ futures** and **U.S. stocks**:
+
+1. **Identify Day High / Day Low** — these are the key liquidity levels to track each session
+2. **Identify current trend** — Bullish (higher highs and higher lows) or Bearish (lower highs and lower lows)
+3. **Identify Inducement and POIs (Points of Interest)** — areas where price may sweep liquidity (equal highs/lows, previous session highs/lows) before reversing
+4. **Entry trigger** — if price breaks the Day High or Low, wait for a **Change of Character (CHOCH)**, then enter on a retracement into a **Fair Value Gap (FVG)** or **Order Block**
+
+### Key Concepts
+
+| Term | Definition |
+|---|---|
+| **Inducement** | A liquidity sweep designed to trap retail traders before the real move |
+| **POI (Point of Interest)** | Key price levels with institutional interest — previous highs/lows, supply/demand zones |
+| **CHOCH (Change of Character)** | First sign of trend reversal — price breaks the most recent swing high in a downtrend (or swing low in an uptrend) |
+| **FVG (Fair Value Gap)** | A 3-candle price imbalance where the first candle's high and third candle's low don't overlap (bullish), or vice versa (bearish) |
+| **Order Block** | The last bullish/bearish candle before a significant opposing move — where institutional orders are likely resting |
 
 ---
 
@@ -26,24 +47,31 @@ Trading Intelligence Dashboard
 ├── providers/                 Pluggable data adapters
 │   ├── yahoo.py               Yahoo Finance  (stocks + futures, free default)
 │   ├── projectx.py            ProjectX / TopstepX  (real-time futures)
-│   └── finnhub_client.py      Finnhub  (economic calendar + news)
+│   ├── finnhub_client.py      Finnhub  (real-time stocks, economic calendar, news)
+│   └── stocks.py              Provider router — dispatches to yahoo or finnhub
 │
 ├── ai/
 │   └── claude.py              All Claude API calls (prompt-cached)
+│                              • generate_morning_brief()  — SMC-tuned ES/NQ brief
+│                              • analyze_stock_my_strategy() — SMC stock analysis
+│                              • get_smc_entry_levels()    — structured JSON entry levels
+│                              • analyze_stock()           — technical/fundamental analysis
+│                              • analyze_earnings()        — earnings report interpretation
+│                              • generate_watchlist_suggestions()
 │
 └── views/                     Streamlit page renderers
     ├── morning_brief.py       Morning Brief page
     ├── watchlist.py           Watchlist page
-    ├── stock_analysis.py      Stock Analysis page
+    ├── stock_analysis.py      Stock Analysis page (VWAP + SMC entry map)
     └── settings.py            Settings page
 ```
 
 ### Data Flow
 
 ```
-Morning Brief  →  futures quotes  +  economic events  +  news  →  Claude AI brief
-Watchlist      →  quotes + company info  →  Claude AI ranked suggestions
-Stock Analysis →  price history + financials  →  Claude AI analysis / earnings
+Morning Brief  →  ES/NQ quotes  +  economic events  +  news  →  SMC-tuned Claude brief
+Watchlist      →  quotes + company info  →  Claude ranked suggestions
+Stock Analysis →  price history  →  VWAP chart  →  Claude SMC analysis  →  entry map chart
 ```
 
 ### Provider Matrix
@@ -57,7 +85,7 @@ Stock Analysis →  price history + financials  →  Claude AI analysis / earnin
 | Market news | Finnhub free tier | — | — |
 | AI analysis | Claude (Anthropic) | — | — |
 
-Switching providers is a one-line change in `.env` — no code edits required. Charts always use Yahoo Finance regardless of quote provider (best free historical data source).
+Switching providers is a one-line change in `.env` — no code edits required. Charts always use Yahoo Finance regardless of quote provider.
 
 ---
 
@@ -107,7 +135,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Options: claude-sonnet-4-6 | claude-opus-4-7 | claude-haiku-4-5-20251001
 CLAUDE_MODEL=claude-sonnet-4-6
 
-# ── Economic Calendar & News (recommended, free) ───────────────────────────
+# ── Economic Calendar, News & Stock Quotes (recommended, free) ─────────────
 FINNHUB_API_KEY=your_finnhub_key
 
 # ── Futures: ProjectX / TopstepX (optional, real-time) ────────────────────
@@ -125,7 +153,7 @@ FUTURES_PROVIDER=yahoo
 # "yahoo"    → free, ~15 min delay
 # "finnhub"  → real-time, free (reuses FINNHUB_API_KEY — charts still use yfinance)
 # "questrade"→ real-time (planned)
-STOCKS_PROVIDER=yahoo
+STOCKS_PROVIDER=finnhub
 
 # ── App ────────────────────────────────────────────────────────────────────
 REFRESH_INTERVAL=60
@@ -146,7 +174,7 @@ REFRESH_INTERVAL=60
 ANTHROPIC_API_KEY=sk-ant-...
 FINNHUB_API_KEY=your_finnhub_key
 FUTURES_PROVIDER=yahoo
-STOCKS_PROVIDER=yahoo
+STOCKS_PROVIDER=finnhub
 CLAUDE_MODEL=claude-sonnet-4-6
 ```
 
@@ -171,32 +199,50 @@ streamlit run app.py --server.port 8502
 
 ### Morning Brief
 
-- Futures table (MES, MNQ, ES, NQ, YM, RTY) with live prices, change %, high/low
+- Tracks **ES and NQ only** (focused on the contracts you trade)
+- Futures table with live prices, change %, high/low
 - Economic events for today — color-coded by impact (High / Medium / Low)
-- Latest market news headlines
-- Click **Generate Morning Brief** → Claude delivers: market sentiment, key MES/MNQ levels, session risks, trading bias, and one actionable insight
+- Latest market news headlines with source links
+- Click **Generate Morning Brief** → Claude applies your SMC strategy and delivers:
+  - Trend direction (Bullish / Bearish) for ES and NQ
+  - Day High / Day Low and major POIs with approximate price levels
+  - Inducement zones — where liquidity may be swept before the real move
+  - Potential CHOCH + FVG / Order Block entry setup
+  - Economic event risks that could invalidate setups
+  - Session bias and one actionable insight
 
 ### Watchlist
 
 - Add any U.S. ticker via the **Manage Watchlist** expander
 - Choose timeframe: **Day Trade / Swing / Mid-Term / Long-Term**
 - Snapshot table: price, change %, 52-week range, P/E, sector
-- Click **Get AI Suggestions** → Claude ranks each stock by opportunity and gives a one-line trade idea per name
+- Click **Get AI Suggestions** → Claude ranks each stock by opportunity with bias, key level, and a one-line trade idea
 
 ### Stock Analysis
 
-1. Enter a ticker symbol (e.g. `NVDA`, `AAPL`, `TSLA`)
+1. Enter any U.S. ticker (e.g. `NVDA`, `AAPL`, `TSLA`)
 2. Choose analysis type:
-   - **Technical & Fundamental** — candlestick chart with SMA 20/50 + volume, key metrics, AI analysis with entry/target/stop
-   - **Earnings Report** — Claude interprets the most recent earnings: beat/miss, guidance, price reaction expectation, trading recommendation
+   - **My Strategy** *(default)* — applies the SMC strategy: trend, Day High/Low, POIs, inducement zones, CHOCH + FVG/Order Block entry, invalidation level. Then generates an **Entry Map chart** showing:
+     - Order Block zone (shaded green/red)
+     - FVG zone (shaded yellow)
+     - CHOCH level (purple line)
+     - Entry, Stop Loss, and Target (horizontal lines)
+     - Risk/Reward ratio (e.g. `R:R 2.5R`)
+   - **Technical & Fundamental** — general trend analysis, support/resistance, valuation, entry/target/stop
+   - **Earnings Report** — interprets the most recent earnings: beat/miss, guidance, price reaction expectation, trading recommendation
 3. Choose timeframe to tailor the AI output
+
+**Charts include:**
+- Candlesticks with volume bars
+- SMA 20 (orange) and SMA 50 (blue)
+- **VWAP** (magenta dotted line) — resets per trading day on intraday charts; anchored from period start on daily/weekly charts
 
 ### Settings
 
 - Enter/update API keys (stored in `.env`, never logged)
 - Switch futures or stock data provider
 - Change Claude model
-- Service Status panel shows which integrations are active (green/red)
+- Service Status panel shows which integrations are active
 
 ---
 
@@ -220,20 +266,20 @@ streamlit run app.py --server.port 8502
 
 | Symbol (Yahoo) | Contract | Exchange |
 |---|---|---|
-| `MES=F` | Micro E-mini S&P 500 | CME |
-| `MNQ=F` | Micro E-mini Nasdaq-100 | CME |
 | `ES=F` | E-mini S&P 500 | CME |
 | `NQ=F` | E-mini Nasdaq-100 | CME |
+| `MES=F` | Micro E-mini S&P 500 | CME |
+| `MNQ=F` | Micro E-mini Nasdaq-100 | CME |
 | `YM=F` | E-mini Dow Jones | CBOT |
 | `RTY=F` | E-mini Russell 2000 | CME |
 
-> The ProjectX provider uses the short form (MES, MNQ, ES…) — the mapping is handled automatically.
+> The morning brief tracks **ES and NQ** by default. Edit `FUTURES_WATCHLIST` in `config.py` to add more contracts.
 
 ---
 
 ## Managing Your Watchlist
 
-Stocks persist in `watchlist.json`. You can manage them via the UI or edit the file directly:
+Stocks persist in `watchlist.json`. Manage them via the UI or edit the file directly:
 
 ```json
 {
@@ -260,18 +306,21 @@ Add it to Task Scheduler → trigger on user logon.
 
 ### Option 2 — Streamlit Community Cloud (free, browser-accessible anywhere)
 
-1. Push project to a **private** GitHub repo (add `.env` to `.gitignore`)
+1. Push project to a **private** GitHub repo (`.env` is already in `.gitignore`)
 2. Go to [share.streamlit.io](https://share.streamlit.io) → New app → connect your repo
-3. In **Advanced settings → Secrets**, paste your `.env` contents in TOML format:
+3. In **Advanced settings → Secrets**, paste your keys in TOML format:
    ```toml
    ANTHROPIC_API_KEY = "sk-ant-..."
    FINNHUB_API_KEY = "your_key"
    FUTURES_PROVIDER = "yahoo"
-   STOCKS_PROVIDER = "yahoo"
+   STOCKS_PROVIDER = "finnhub"
    CLAUDE_MODEL = "claude-sonnet-4-6"
    ```
+4. Deploy — the app auto-redeploys on every `git push`
 
-### Option 3 — Docker
+> Note: Streamlit Community Cloud has an ephemeral filesystem. Watchlist changes made via the UI will reset on restart. Use the JSON file or a cloud database (e.g. Firebase Firestore) for persistence.
+
+### Option 3 — Docker / Google Cloud Run
 
 ```dockerfile
 FROM python:3.11-slim
@@ -288,6 +337,8 @@ docker build -t trading-app .
 docker run -p 8501:8501 --env-file .env trading-app
 ```
 
+Deploy to Google Cloud Run to use a custom domain (e.g. `trade.alleasier.ca`).
+
 ---
 
 ## Troubleshooting
@@ -298,9 +349,11 @@ docker run -p 8501:8501 --env-file .env trading-app
 | Futures data shows errors | Yahoo Finance can be flaky; wait a moment and refresh |
 | AI buttons do nothing | Verify `ANTHROPIC_API_KEY` is set and valid |
 | Economic calendar is empty | Check `FINNHUB_API_KEY` at finnhub.io |
+| Entry map not showing | Requires Anthropic API key; Claude generates the levels |
 | ProjectX connection fails | Confirm your API subscription is active and credentials are correct |
 | Port 8501 already in use | `streamlit run app.py --server.port 8502` |
 | Settings changes not applied | Restart the app after saving new API keys |
+| Analysis disappears on interact | Fixed via session_state — analysis persists per ticker |
 
 ---
 
@@ -310,10 +363,10 @@ docker run -p 8501:8501 --env-file .env trading-app
 |---|---|
 | Yahoo Finance | Free |
 | Finnhub | Free |
-| Claude Sonnet 4.6 | ~$0.003 per morning brief, ~$0.002 per stock analysis |
+| Claude Sonnet 4.6 | ~$0.003 per morning brief, ~$0.004 per My Strategy analysis (includes entry map) |
 | ProjectX API | $14.50–$29/mo |
 
-**Typical daily AI cost:** < $0.02 (one morning brief + a few stock analyses)
+**Typical daily AI cost:** < $0.03 (one morning brief + a few stock analyses with entry maps)
 
 ---
 
@@ -322,6 +375,7 @@ docker run -p 8501:8501 --env-file .env trading-app
 - [ ] Questrade real-time stock quotes
 - [ ] Auto-refresh on a configurable timer
 - [ ] Price alerts (desktop notifications)
-- [ ] Trade journal — log and review your trades
+- [ ] Trade journal — log and review your trades with SMC annotations
 - [ ] Options chain analysis
-- [ ] Simple backtesting panel
+- [ ] Simple backtesting panel for SMC setups
+- [ ] Persistent watchlist via Firebase Firestore

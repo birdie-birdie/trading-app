@@ -35,9 +35,9 @@ def get_earnings(symbol: str) -> dict:
     return yahoo.get_earnings(symbol)
 
 
-def get_history(symbol: str, period: str = "3mo", interval: str = "1d"):
+def get_history(symbol: str, period: str = "3mo", interval: str = "1d", prepost: bool = False):
     """Historical OHLCV for charting — always uses yfinance (best free source)."""
-    return yahoo.get_history(symbol, period=period, interval=interval)
+    return yahoo.get_history(symbol, period=period, interval=interval, prepost=prepost)
 
 
 def active_provider() -> str:

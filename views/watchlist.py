@@ -122,4 +122,4 @@ def render():
         valid_data = [d for d in data if "error" not in d]
         with st.spinner(f"Claude is analyzing your watchlist ({tf_key} timeframe)…"):
             suggestions = claude.generate_watchlist_suggestions(valid_data, tf_key)
-        st.markdown(suggestions)
+        st.markdown(suggestions.replace("$", r"\$"))

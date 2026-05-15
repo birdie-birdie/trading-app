@@ -111,4 +111,4 @@ def render():
         news    = finnhub_client.get_market_news(Config.FINNHUB_API_KEY) if services["finnhub"] else []
         with st.spinner("Claude is analyzing the markets…"):
             brief = claude.generate_morning_brief(futures_data, events, news)
-        st.markdown(brief)
+        st.markdown(brief.replace("$", r"\$"))

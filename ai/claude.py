@@ -1,6 +1,7 @@
 """
 All Claude API calls. Uses prompt caching where possible to reduce costs.
 """
+import time
 import anthropic
 from config import Config
 
@@ -10,13 +11,25 @@ def _client() -> anthropic.Anthropic:
 
 
 def _ask(system: str, user: str, max_tokens: int = 1024) -> str:
-    msg = _client().messages.create(
-        model=Config.CLAUDE_MODEL,
-        max_tokens=max_tokens,
-        system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": user}],
-    )
-    return msg.content[0].text
+    """Call Claude with automatic retry on overload (529) errors."""
+    last_error = None
+    for attempt, wait in enumerate([0, 5, 15]):
+        if wait:
+            time.sleep(wait)
+        try:
+            msg = _client().messages.create(
+                model=Config.CLAUDE_MODEL,
+                max_tokens=max_tokens,
+                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+                messages=[{"role": "user", "content": user}],
+            )
+            return msg.content[0].text
+        except anthropic.APIStatusError as e:
+            last_error = e
+            if e.status_code == 529 and attempt < 2:
+                continue  # retry on overload
+            raise
+    raise last_error
 
 
 # ─── Morning Brief ────────────────────────────────────────────────────────────
@@ -111,10 +124,10 @@ Then rank top 3 opportunities for today."""
 MY_STRATEGY_SYSTEM = """You are my personal trading analyst. Apply my SMC-based strategy to stock analysis.
 
 My strategy:
-1. Identify the Day High and Day Low — key liquidity levels
+1. Identify the High and Low — key liquidity levels for the relevant timeframe
 2. Identify the current trend — Bullish (higher highs/lows) or Bearish (lower highs/lows)
 3. Identify Inducement and POIs (Points of Interest) — areas where price may sweep liquidity before reversing
-4. Entry trigger — if price breaks the Day High or Low, wait for a Change of Character (CHOCH), then enter on a retracement into a Fair Value Gap (FVG) or Order Block
+4. Entry trigger — if price breaks the High or Low, wait for a Change of Character (CHOCH), then enter on a retracement into a Fair Value Gap (FVG) or Order Block
 
 Definitions:
 - Inducement: liquidity sweep designed to trap retail traders before the real move
@@ -142,7 +155,7 @@ RECENT PRICE ACTION:
 
 Provide:
 1. Trend — Bullish or Bearish with reasoning based on recent price structure
-2. Key levels — Day High, Day Low, and major POIs (with approximate prices)
+2. Key levels — High, Low, and major POIs (with approximate prices)
 3. Inducement zones — where liquidity may be swept before the real move
 4. Potential setup — if a key level breaks, describe the CHOCH to watch for and the FVG/Order Block entry zone
 5. Invalidation — what price action would invalidate the setup
@@ -222,6 +235,50 @@ Provide:
 6. Key things to watch in the next report"""
 
     return _ask(EARNINGS_SYSTEM, user_msg, max_tokens=1200)
+
+
+# ─── SMC Structured Entry Levels ─────────────────────────────────────────────
+
+def get_smc_entry_levels(ticker: str, info: dict, history_summary: str, timeframe: str) -> dict:
+    """
+    Returns SMC entry levels as a structured dict for chart plotting.
+    Asks Claude to return JSON only — parsed and returned as a Python dict.
+    """
+    price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
+
+    user_msg = f"""Based on SMC analysis of {ticker} at current price ${price}.
+
+Recent price action: {history_summary}
+
+Return ONLY valid JSON, no other text, in this exact format:
+{{
+  "bias": "Bullish",
+  "order_block": {{"high": 0.0, "low": 0.0, "type": "Bullish"}},
+  "fvg": {{"high": 0.0, "low": 0.0, "type": "Bullish"}},
+  "choch_level": 0.0,
+  "entry": 0.0,
+  "stop_loss": 0.0,
+  "target": 0.0
+}}
+
+Rules:
+- bias must be "Bullish" or "Bearish"
+- order_block and fvg type must match bias
+- All prices must be realistic relative to current price ${price}
+- entry should be inside or near the order_block or fvg zone
+- stop_loss below order_block low (bullish) or above order_block high (bearish)
+- target is the next significant liquidity level"""
+
+    raw = _ask(MY_STRATEGY_SYSTEM, user_msg, max_tokens=400)
+
+    import json, re
+    try:
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return {}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -30,8 +30,8 @@ def get_multiple_quotes(tickers: list) -> list:
     return [get_quote(t) for t in tickers]
 
 
-def get_history(ticker: str, period: str = "3mo", interval: str = "1d") -> pd.DataFrame:
-    return yf.Ticker(ticker).history(period=period, interval=interval)
+def get_history(ticker: str, period: str = "3mo", interval: str = "1d", prepost: bool = False) -> pd.DataFrame:
+    return yf.Ticker(ticker).history(period=period, interval=interval, prepost=prepost)
 
 
 def get_info(ticker: str) -> dict:
