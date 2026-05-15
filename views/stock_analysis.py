@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import anthropic
 from pathlib import Path
-from providers import stocks as stock_provider
+from providers import stocks as stock_provider, yahoo
 from ai.claude import (analyze_stock, analyze_stock_my_strategy, analyze_earnings,
                        get_smc_entry_levels, analyze_ict, get_ict_entry_levels)
 from config import Config
@@ -276,28 +276,72 @@ def _history_summary(df: pd.DataFrame) -> str:
     )
 
 
+# ─── Futures helpers ──────────────────────────────────────────────────────────
+
+def _futures_provider_name(services: dict) -> str:
+    if Config.FUTURES_PROVIDER == "projectx" and services.get("projectx"):
+        return "ProjectX (real-time)"
+    return "Yahoo Finance"
+
+
+def _futures_quote(ticker: str, services: dict) -> dict:
+    if Config.FUTURES_PROVIDER == "projectx" and services.get("projectx"):
+        from providers import projectx
+        results = projectx.get_multiple_quotes(
+            [ticker], Config.PROJECTX_USERNAME, Config.PROJECTX_API_KEY
+        )
+        return results[0] if results else {"symbol": ticker, "error": "no data"}
+    return yahoo.get_quote(ticker)
+
+
+def _futures_key_metrics(quote: dict):
+    cols = st.columns(4)
+    chg_pct = quote.get("change_pct", 0)
+    chg_str = f"{chg_pct:+.2f}%" if isinstance(chg_pct, (int, float)) else "—"
+    metrics = [
+        ("Price",    str(quote.get("price",  "—"))),
+        ("Change",   chg_str),
+        ("Day High", str(quote.get("high",   "—"))),
+        ("Day Low",  str(quote.get("low",    "—"))),
+    ]
+    for i, (label, val) in enumerate(metrics):
+        cols[i].metric(label, val)
+
+
 # ─── Page ─────────────────────────────────────────────────────────────────────
 
 def render():
     from providers.stocks import active_provider
     st.title("Stock Analysis")
-    st.caption(f"Data: {active_provider()}  |  Charts: Yahoo Finance (historical)")
     services = Config.validate()
 
     # ── Inputs ────────────────────────────────────────────────────────────────
-    col1, col2, col3 = st.columns([2, 2, 2])
+    col0, col1, col2, col3 = st.columns([1.5, 2, 2, 1.5])
+    with col0:
+        instrument_type = st.selectbox("Instrument", ["Stock", "Futures"])
     with col1:
-        ticker = st.text_input("Ticker symbol", placeholder="e.g. AAPL").upper().strip()
+        if instrument_type == "Futures":
+            ticker = st.text_input("Symbol", placeholder="ES=F  NQ=F  MES=F…").upper().strip()
+        else:
+            ticker = st.text_input("Ticker symbol", placeholder="e.g. AAPL").upper().strip()
     with col2:
-        analysis_type = st.selectbox(
-            "Analysis type",
-            ["My ICT", "My SMC", "Technical & Fundamental", "Earnings Report"],
-        )
+        if instrument_type == "Futures":
+            analysis_type = st.selectbox("Analysis type", ["My ICT", "My SMC"])
+        else:
+            analysis_type = st.selectbox(
+                "Analysis type",
+                ["My ICT", "My SMC", "Technical & Fundamental", "Earnings Report"],
+            )
     with col3:
         timeframe = st.selectbox("Timeframe", ["Day Trade", "Swing", "Mid-Term", "Long-Term"])
 
+    if instrument_type == "Futures":
+        st.caption(f"Quotes: {_futures_provider_name(services)}  |  Charts: Yahoo Finance (historical)")
+    else:
+        st.caption(f"Quotes: {active_provider()}  |  Charts: Yahoo Finance (historical)")
+
     if not ticker:
-        st.info("Enter a ticker symbol above to get started.")
+        st.info("Enter a symbol above to get started.")
         return
 
     period_map = {
@@ -315,17 +359,30 @@ def render():
 
     # ── Load & chart ──────────────────────────────────────────────────────────
     with st.spinner(f"Loading {ticker}…"):
-        info = stock_provider.get_info(ticker)
-        df   = _candlestick_chart(ticker, period, interval, timeframe, prepost)
+        if instrument_type == "Futures":
+            quote = _futures_quote(ticker, services)
+            info  = yahoo.get_info(ticker) or {}
+            if not info.get("currentPrice") and not info.get("regularMarketPrice"):
+                info["currentPrice"] = quote.get("price")
+            info.setdefault("longName", ticker)
+        else:
+            info = stock_provider.get_info(ticker)
+        df = _candlestick_chart(ticker, period, interval, timeframe, prepost)
 
     if not info:
-        st.error(f"Could not load data for {ticker}. Check the ticker symbol.")
+        st.error(f"Could not load data for {ticker}. Check the symbol.")
         return
 
-    st.caption(f"{info.get('longName', ticker)}  |  {info.get('sector', '')}")
+    if instrument_type == "Futures":
+        st.caption(info.get("longName", ticker))
+    else:
+        st.caption(f"{info.get('longName', ticker)}  |  {info.get('sector', '')}")
 
     st.subheader("Key Metrics")
-    _key_metrics(info)
+    if instrument_type == "Futures":
+        _futures_key_metrics(quote)
+    else:
+        _key_metrics(info)
 
     # ── AI Analysis ───────────────────────────────────────────────────────────
     st.divider()

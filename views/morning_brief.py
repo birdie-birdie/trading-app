@@ -28,9 +28,16 @@ def _futures_quotes() -> list:
 
 def render():
     st.title("Morning Brief")
-    st.caption(f"As of {datetime.now().strftime('%A, %B %d %Y  %H:%M')}")
-
     services = Config.validate()
+    futures_provider = (
+        "ProjectX (real-time)"
+        if Config.FUTURES_PROVIDER == "projectx" and services["projectx"]
+        else "Yahoo Finance"
+    )
+    st.caption(
+        f"As of {datetime.now().strftime('%A, %B %d %Y  %H:%M')}"
+        f"  |  Futures: {futures_provider}"
+    )
 
     # ── Futures Overview ──────────────────────────────────────────────────────
     st.subheader("Index Futures")

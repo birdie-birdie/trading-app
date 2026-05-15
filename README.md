@@ -1,6 +1,31 @@
 # Trading Intelligence Dashboard
 
-An AI-powered trading assistant for **ES / NQ index futures day trading** and **U.S. stock analysis** (swing to long-term). Built with Streamlit and Claude AI, and tuned to a Smart Money Concepts (SMC) trading strategy.
+An AI-powered trading assistant for **ES / NQ index futures day trading** and **U.S. stock analysis** (swing to long-term). Built with Streamlit and Claude AI, tuned to both ICT (Inner Circle Trader) and Smart Money Concepts (SMC) trading strategies.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [My ICT Strategy](#my-ict-strategy-inner-circle-trader)
+- [My SMC Strategy](#my-smc-strategy-smart-money-concepts)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Running the App](#running-the-app)
+- [Feature Guide](#feature-guide)
+  - [Morning Brief](#morning-brief)
+  - [Watchlist](#watchlist)
+  - [Stock Analysis](#stock-analysis)
+  - [Settings](#settings)
+- [Enabling Real-Time Futures (ProjectX)](#enabling-real-time-futures-projectx)
+- [Futures Symbols Reference](#futures-symbols-reference)
+- [Managing Your Watchlist](#managing-your-watchlist)
+- [Deployment](#deployment)
+- [Troubleshooting](#troubleshooting)
+- [Cost Estimate](#cost-estimate)
+- [Roadmap](#roadmap)
 
 ---
 
@@ -8,37 +33,16 @@ An AI-powered trading assistant for **ES / NQ index futures day trading** and **
 
 | Page | What it does |
 |---|---|
-| **Morning Brief** | Pre-market ES/NQ snapshot, today's economic events, market news, and an SMC-based AI session outlook |
+| **Morning Brief** | Pre-market ES/NQ snapshot, today's economic events, market news, and an AI session outlook — choose **My ICT** or **My SMC** strategy before generating. Active futures provider shown in caption. |
 | **Watchlist** | Manage your U.S. stock watchlist; get AI trading suggestions ranked by timeframe |
-| **Stock Analysis** | On-demand My SMC, My ICT, technical/fundamental, or earnings analysis for any ticker — with VWAP chart and visual entry map |
+| **Stock Analysis** | Analyze **Stocks** or **Futures** (ES=F, NQ=F, MES=F…) — choose instrument type, then run **My ICT** *(default)*, My SMC, technical/fundamental, or earnings analysis with VWAP chart and visual entry map. Active quotes provider shown in caption. |
 | **Settings** | Configure all API keys and provider preferences through the UI |
-
----
-
-## My SMC Strategy (Smart Money Concepts)
-
-The AI analysis throughout this app is tuned to the following strategy for **ES and NQ futures** and **U.S. stocks**:
-
-1. **Identify Day High / Day Low** — these are the key liquidity levels to track each session
-2. **Identify current trend** — Bullish (higher highs and higher lows) or Bearish (lower highs and lower lows)
-3. **Identify Inducement and POIs (Points of Interest)** — areas where price may sweep liquidity (equal highs/lows, previous session highs/lows) before reversing
-4. **Entry trigger** — if price breaks the Day High or Low, wait for a **Change of Character (CHOCH)**, then enter on a retracement into a **Fair Value Gap (FVG)** or **Order Block**
-
-### Key Concepts
-
-| Term | Definition |
-|---|---|
-| **Inducement** | A liquidity sweep designed to trap retail traders before the real move |
-| **POI (Point of Interest)** | Key price levels with institutional interest — previous highs/lows, supply/demand zones |
-| **CHOCH (Change of Character)** | First sign of trend reversal — price breaks the most recent swing high in a downtrend (or swing low in an uptrend) |
-| **FVG (Fair Value Gap)** | A 3-candle price imbalance where the first candle's high and third candle's low don't overlap (bullish), or vice versa (bearish) |
-| **Order Block** | The last bullish/bearish candle before a significant opposing move — where institutional orders are likely resting |
 
 ---
 
 ## My ICT Strategy (Inner Circle Trader)
 
-The **My ICT** analysis type applies ICT methodology with fully configurable rules stored in `ict_config.json`. Each rule can be toggled on/off and fine-tuned without touching code — from the **ICT Rules** expander inside the Stock Analysis page.
+**My ICT** is the default analysis strategy across the app. It applies ICT methodology with fully configurable rules stored in `ict_config.json`. Each rule can be toggled on/off and fine-tuned without touching code — from the **ICT Rules** expander inside the Stock Analysis page.
 
 ### Configurable ICT Rules
 
@@ -58,6 +62,40 @@ The **My ICT** analysis type applies ICT methodology with fully configurable rul
 
 Rules are saved to `ict_config.json` and persist across sessions. Only enabled rules are included in the AI prompt, so you can incrementally adopt ICT concepts as you test them.
 
+### ICT Morning Brief Sections
+
+When **My ICT** is selected on the Morning Brief page, Claude delivers:
+
+1. **Market Structure** — current HH/HL or LH/LL for ES and NQ
+2. **Dealing Range** — today's range high/low; is price in Premium or Discount?
+3. **Killzone** — which killzone is active or upcoming; current PO3 phase
+4. **Judas Swing** — false open move direction, if any
+5. **Liquidity** — key resting stops (equal highs/lows, swing points)
+6. **Setup** — FVG or Order Block entry zone, OTE Fibonacci level if applicable
+7. **Economic event risk** — catalysts or setup invalidators
+8. **Session bias** — Bullish / Bearish / No Setup for ES and NQ + one actionable insight
+
+---
+
+## My SMC Strategy (Smart Money Concepts)
+
+The **My SMC** strategy is available as an alternative in both the Morning Brief and Stock Analysis pages.
+
+1. **Identify Day High / Day Low** — key liquidity levels to track each session
+2. **Identify current trend** — Bullish (higher highs and higher lows) or Bearish (lower highs and lower lows)
+3. **Identify Inducement and POIs (Points of Interest)** — areas where price may sweep liquidity before reversing
+4. **Entry trigger** — if price breaks the Day High or Low, wait for a **Change of Character (CHOCH)**, then enter on a retracement into a **Fair Value Gap (FVG)** or **Order Block**
+
+### Key Concepts
+
+| Term | Definition |
+|---|---|
+| **Inducement** | A liquidity sweep designed to trap retail traders before the real move |
+| **POI (Point of Interest)** | Key price levels with institutional interest — previous highs/lows, supply/demand zones |
+| **CHOCH (Change of Character)** | First sign of trend reversal — price breaks the most recent swing high in a downtrend (or swing low in an uptrend) |
+| **FVG (Fair Value Gap)** | A 3-candle price imbalance where the first candle's high and third candle's low don't overlap (bullish), or vice versa (bearish) |
+| **Order Block** | The last bullish/bearish candle before a significant opposing move — where institutional orders are likely resting |
+
 ---
 
 ## Architecture
@@ -76,11 +114,12 @@ Trading Intelligence Dashboard
 │
 ├── ai/
 │   └── claude.py              All Claude API calls (prompt-cached)
+│                              • generate_morning_brief_ict()   — ICT-tuned ES/NQ brief
 │                              • generate_morning_brief()       — SMC-tuned ES/NQ brief
-│                              • analyze_stock_my_strategy()    — My SMC stock analysis
-│                              • get_smc_entry_levels()         — structured JSON entry levels
 │                              • analyze_ict()                  — My ICT analysis (dynamic rules)
 │                              • get_ict_entry_levels()         — ICT structured JSON entry levels
+│                              • analyze_stock_my_strategy()    — My SMC stock analysis
+│                              • get_smc_entry_levels()         — SMC structured JSON entry levels
 │                              • analyze_stock()                — technical/fundamental analysis
 │                              • analyze_earnings()             — earnings report interpretation
 │                              • generate_watchlist_suggestions()
@@ -88,19 +127,25 @@ Trading Intelligence Dashboard
 ├── ict_config.json            Configurable ICT rule settings (persisted between sessions)
 │
 └── views/                     Streamlit page renderers
-    ├── morning_brief.py       Morning Brief page
+    ├── morning_brief.py       Morning Brief page (strategy selector: My ICT / My SMC)
     ├── watchlist.py           Watchlist page
-    ├── stock_analysis.py      Stock Analysis page (VWAP + SMC/ICT entry map)
+    ├── stock_analysis.py      Stock Analysis page (VWAP + ICT/SMC entry map)
     └── settings.py            Settings page
 ```
 
 ### Data Flow
 
 ```
-Morning Brief  →  ES/NQ quotes  +  economic events  +  news  →  SMC-tuned Claude brief
+Morning Brief  →  ES/NQ quotes  +  economic events  +  news
+               →  strategy selector (My ICT / My SMC)
+               →  ICT-tuned or SMC-tuned Claude brief
+
 Watchlist      →  quotes + company info  →  Claude ranked suggestions
-Stock Analysis →  price history  →  VWAP chart  →  Claude SMC/ICT analysis  →  entry map chart
-               →  ict_config.json (enabled rules)  →  dynamic ICT prompt  →  ICT entry map
+
+Stock Analysis →  price history  →  VWAP chart
+               →  analysis type (My ICT default / My SMC / Technical / Earnings)
+               →  ict_config.json (enabled rules)  →  dynamic ICT prompt
+               →  Claude analysis  →  entry map chart
 ```
 
 ### Provider Matrix
@@ -228,17 +273,14 @@ streamlit run app.py --server.port 8502
 
 ### Morning Brief
 
+- Active **futures provider** (Yahoo Finance or ProjectX) shown in the page caption
 - Tracks **ES and NQ only** (focused on the contracts you trade)
-- Futures table with live prices, change %, high/low
+- Futures table with live prices, change %, high/low — **↺ Refresh** button to pull latest quotes on demand
 - Economic events for today — color-coded by impact (High / Medium / Low)
 - Latest market news headlines with source links
-- Click **Generate Morning Brief** → Claude applies your SMC strategy and delivers:
-  - Trend direction (Bullish / Bearish) for ES and NQ
-  - Day High / Day Low and major POIs with approximate price levels
-  - Inducement zones — where liquidity may be swept before the real move
-  - Potential CHOCH + FVG / Order Block entry setup
-  - Economic event risks that could invalidate setups
-  - Session bias and one actionable insight
+- Choose **Analysis strategy** — **My ICT** *(default)* or **My SMC** — before generating
+- Click **Generate Morning Brief** → Claude applies your chosen strategy and delivers a session outlook tailored to that framework
+- ICT brief includes the actual prior RTH session High/Low/EQ fetched from Yahoo history — no estimated dealing ranges
 
 ### Watchlist
 
@@ -249,17 +291,21 @@ streamlit run app.py --server.port 8502
 
 ### Stock Analysis
 
-1. Enter any U.S. ticker (e.g. `NVDA`, `AAPL`, `TSLA`)
+- Active **quotes provider** (Yahoo Finance, Finnhub, or Questrade) shown in the page caption
+
+1. Choose **Instrument** — **Stock** or **Futures**
+   - **Stock** — enter any U.S. ticker (e.g. `NVDA`, `AAPL`, `TSLA`); quotes via configured stock provider
+   - **Futures** — enter a futures symbol (e.g. `ES=F`, `NQ=F`, `MES=F`, `MNQ=F`); quotes via configured futures provider (Yahoo Finance or ProjectX). Shows price, change %, day high/low.
 2. Choose analysis type:
-   - **My SMC** *(default)* — applies your Smart Money Concepts strategy: trend, High/Low, POIs, inducement zones, CHOCH + FVG/Order Block entry, invalidation level. Generates an **Entry Map chart** showing:
+   - **My ICT** *(default)* — applies your configurable ICT ruleset. Expand **ICT Rules** to toggle/tune any of the 11 rule categories, then click **Save Rules** to persist them to `ict_config.json`. Only enabled rules are sent to Claude. Generates an **Entry Map chart** showing:
      - Order Block zone (shaded green/red)
      - FVG zone (shaded yellow)
      - CHOCH level (purple line)
      - Entry, Stop Loss, and Target (horizontal lines)
      - Risk/Reward ratio (e.g. `R:R 2.5R`)
-   - **My ICT** — applies your configurable ICT ruleset. Expand **ICT Rules** to toggle/tune any of the 11 rule categories, then click **Save Rules** to persist them to `ict_config.json`. Only enabled rules are sent to Claude. Generates the same Entry Map chart as My SMC.
-   - **Technical & Fundamental** — general trend analysis, support/resistance, valuation, entry/target/stop
-   - **Earnings Report** — interprets the most recent earnings: beat/miss, guidance, price reaction expectation, trading recommendation
+   - **My SMC** — applies your Smart Money Concepts strategy: trend, High/Low, POIs, inducement zones, CHOCH + FVG/Order Block entry, invalidation level. Generates the same Entry Map chart as My ICT.
+   - **Technical & Fundamental** — general trend analysis, support/resistance, valuation, entry/target/stop *(stocks only)*
+   - **Earnings Report** — interprets the most recent earnings: beat/miss, guidance, price reaction expectation, trading recommendation *(stocks only)*
 3. Choose timeframe to tailor the AI output
 
 **Charts include:**
@@ -393,7 +439,7 @@ Deploy to Google Cloud Run to use a custom domain (e.g. `trade.alleasier.ca`).
 |---|---|
 | Yahoo Finance | Free |
 | Finnhub | Free |
-| Claude Sonnet 4.6 | ~$0.003 per morning brief, ~$0.004 per My SMC or My ICT analysis (includes entry map) |
+| Claude Sonnet 4.6 | ~$0.003 per morning brief, ~$0.004 per My ICT or My SMC analysis (includes entry map) |
 | ProjectX API | $14.50–$29/mo |
 
 **Typical daily AI cost:** < $0.03 (one morning brief + a few stock analyses with entry maps)
@@ -405,7 +451,7 @@ Deploy to Google Cloud Run to use a custom domain (e.g. `trade.alleasier.ca`).
 - [ ] Questrade real-time stock quotes
 - [ ] Auto-refresh on a configurable timer
 - [ ] Price alerts (desktop notifications)
-- [ ] Trade journal — log and review your trades with SMC annotations
+- [ ] Trade journal — log and review your trades with ICT/SMC annotations
 - [ ] Options chain analysis
-- [ ] Simple backtesting panel for SMC setups
+- [ ] Simple backtesting panel for ICT/SMC setups
 - [ ] Persistent watchlist via Firebase Firestore
