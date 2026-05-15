@@ -85,7 +85,10 @@ def _run_async(coro):
 async def _fetch_quotes_async(contracts: list[str], username: str, api_key: str) -> list[dict]:
     """Fetch today's OHLCV for each contract via direct HTTP (no SDK dependency)."""
     now   = datetime.datetime.now(datetime.timezone.utc)
-    start = now - datetime.timedelta(days=2)
+    # 26h covers the current futures session (23h/day) with buffer.
+    # 26h × 60 min = 1560 bars — safely under the 2000-bar limit so we
+    # never truncate and miss the most recent bars.
+    start = now - datetime.timedelta(hours=26)
 
     async with httpx.AsyncClient(base_url=_BASE_URL, timeout=15) as http:
         # Authenticate
@@ -128,6 +131,8 @@ async def _fetch_quotes_async(contracts: list[str], username: str, api_key: str)
                     results.append({"contract": contract, "error": "no data"})
                     continue
 
+                # Sort ascending by timestamp — API order is not guaranteed
+                bars.sort(key=lambda b: b["t"])
                 close  = float(bars[-1]["c"])
                 open_  = float(bars[0]["o"])
                 high   = max(float(b["h"]) for b in bars)
