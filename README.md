@@ -10,12 +10,12 @@ An AI-powered trading assistant for **ES / NQ index futures day trading** and **
 |---|---|
 | **Morning Brief** | Pre-market ES/NQ snapshot, today's economic events, market news, and an SMC-based AI session outlook |
 | **Watchlist** | Manage your U.S. stock watchlist; get AI trading suggestions ranked by timeframe |
-| **Stock Analysis** | On-demand SMC, technical/fundamental, or earnings analysis for any ticker — with VWAP chart and visual entry map |
+| **Stock Analysis** | On-demand My SMC, My ICT, technical/fundamental, or earnings analysis for any ticker — with VWAP chart and visual entry map |
 | **Settings** | Configure all API keys and provider preferences through the UI |
 
 ---
 
-## My Trading Strategy (SMC — Smart Money Concepts)
+## My SMC Strategy (Smart Money Concepts)
 
 The AI analysis throughout this app is tuned to the following strategy for **ES and NQ futures** and **U.S. stocks**:
 
@@ -36,6 +36,30 @@ The AI analysis throughout this app is tuned to the following strategy for **ES 
 
 ---
 
+## My ICT Strategy (Inner Circle Trader)
+
+The **My ICT** analysis type applies ICT methodology with fully configurable rules stored in `ict_config.json`. Each rule can be toggled on/off and fine-tuned without touching code — from the **ICT Rules** expander inside the Stock Analysis page.
+
+### Configurable ICT Rules
+
+| Rule | Default | Parameters |
+|---|---|---|
+| **Market Structure** | On | — |
+| **Killzones** | On | London Open 02:00–05:00, NY Open 07:00–09:00, London Close (off) |
+| **Power of Three (PO3)** | On | — |
+| **Premium / Discount** | On | — |
+| **Optimal Trade Entry (OTE)** | On | Fib 0.62–0.79 |
+| **Fair Value Gap (FVG)** | On | Min size: 2.0 pts |
+| **Order Block** | On | — |
+| **Breaker Block** | Off | — |
+| **Liquidity** | On | Equal highs, equal lows, swing points |
+| **Judas Swing** | On | — |
+| **Risk Management** | On | Min R:R 2.0, risk per trade 1% |
+
+Rules are saved to `ict_config.json` and persist across sessions. Only enabled rules are included in the AI prompt, so you can incrementally adopt ICT concepts as you test them.
+
+---
+
 ## Architecture
 
 ```
@@ -52,17 +76,21 @@ Trading Intelligence Dashboard
 │
 ├── ai/
 │   └── claude.py              All Claude API calls (prompt-cached)
-│                              • generate_morning_brief()  — SMC-tuned ES/NQ brief
-│                              • analyze_stock_my_strategy() — SMC stock analysis
-│                              • get_smc_entry_levels()    — structured JSON entry levels
-│                              • analyze_stock()           — technical/fundamental analysis
-│                              • analyze_earnings()        — earnings report interpretation
+│                              • generate_morning_brief()       — SMC-tuned ES/NQ brief
+│                              • analyze_stock_my_strategy()    — My SMC stock analysis
+│                              • get_smc_entry_levels()         — structured JSON entry levels
+│                              • analyze_ict()                  — My ICT analysis (dynamic rules)
+│                              • get_ict_entry_levels()         — ICT structured JSON entry levels
+│                              • analyze_stock()                — technical/fundamental analysis
+│                              • analyze_earnings()             — earnings report interpretation
 │                              • generate_watchlist_suggestions()
+│
+├── ict_config.json            Configurable ICT rule settings (persisted between sessions)
 │
 └── views/                     Streamlit page renderers
     ├── morning_brief.py       Morning Brief page
     ├── watchlist.py           Watchlist page
-    ├── stock_analysis.py      Stock Analysis page (VWAP + SMC entry map)
+    ├── stock_analysis.py      Stock Analysis page (VWAP + SMC/ICT entry map)
     └── settings.py            Settings page
 ```
 
@@ -71,7 +99,8 @@ Trading Intelligence Dashboard
 ```
 Morning Brief  →  ES/NQ quotes  +  economic events  +  news  →  SMC-tuned Claude brief
 Watchlist      →  quotes + company info  →  Claude ranked suggestions
-Stock Analysis →  price history  →  VWAP chart  →  Claude SMC analysis  →  entry map chart
+Stock Analysis →  price history  →  VWAP chart  →  Claude SMC/ICT analysis  →  entry map chart
+               →  ict_config.json (enabled rules)  →  dynamic ICT prompt  →  ICT entry map
 ```
 
 ### Provider Matrix
@@ -222,12 +251,13 @@ streamlit run app.py --server.port 8502
 
 1. Enter any U.S. ticker (e.g. `NVDA`, `AAPL`, `TSLA`)
 2. Choose analysis type:
-   - **My Strategy** *(default)* — applies the SMC strategy: trend, Day High/Low, POIs, inducement zones, CHOCH + FVG/Order Block entry, invalidation level. Then generates an **Entry Map chart** showing:
+   - **My SMC** *(default)* — applies your Smart Money Concepts strategy: trend, High/Low, POIs, inducement zones, CHOCH + FVG/Order Block entry, invalidation level. Generates an **Entry Map chart** showing:
      - Order Block zone (shaded green/red)
      - FVG zone (shaded yellow)
      - CHOCH level (purple line)
      - Entry, Stop Loss, and Target (horizontal lines)
      - Risk/Reward ratio (e.g. `R:R 2.5R`)
+   - **My ICT** — applies your configurable ICT ruleset. Expand **ICT Rules** to toggle/tune any of the 11 rule categories, then click **Save Rules** to persist them to `ict_config.json`. Only enabled rules are sent to Claude. Generates the same Entry Map chart as My SMC.
    - **Technical & Fundamental** — general trend analysis, support/resistance, valuation, entry/target/stop
    - **Earnings Report** — interprets the most recent earnings: beat/miss, guidance, price reaction expectation, trading recommendation
 3. Choose timeframe to tailor the AI output
@@ -318,7 +348,7 @@ Add it to Task Scheduler → trigger on user logon.
    ```
 4. Deploy — the app auto-redeploys on every `git push`
 
-> Note: Streamlit Community Cloud has an ephemeral filesystem. Watchlist changes made via the UI will reset on restart. Use the JSON file or a cloud database (e.g. Firebase Firestore) for persistence.
+> Note: Streamlit Community Cloud has an ephemeral filesystem. Watchlist changes and ICT rule edits made via the UI will reset on restart. Commit your preferred `ict_config.json` and `watchlist.json` to the repo before deploying so they survive redeploys. For fully persistent UI edits, use a cloud database (e.g. Firebase Firestore).
 
 ### Option 3 — Docker / Google Cloud Run
 
@@ -363,7 +393,7 @@ Deploy to Google Cloud Run to use a custom domain (e.g. `trade.alleasier.ca`).
 |---|---|
 | Yahoo Finance | Free |
 | Finnhub | Free |
-| Claude Sonnet 4.6 | ~$0.003 per morning brief, ~$0.004 per My Strategy analysis (includes entry map) |
+| Claude Sonnet 4.6 | ~$0.003 per morning brief, ~$0.004 per My SMC or My ICT analysis (includes entry map) |
 | ProjectX API | $14.50–$29/mo |
 
 **Typical daily AI cost:** < $0.03 (one morning brief + a few stock analyses with entry maps)
