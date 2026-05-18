@@ -143,7 +143,7 @@ def _candlestick_chart(ticker: str, period: str, interval: str, timeframe: str =
 
 # ─── SMC entry map chart ───────────────────────────────────────────────────────
 
-def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str):
+def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str, interval: str = ""):
     if not levels or df is None or df.empty:
         return
 
@@ -235,7 +235,8 @@ def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str):
         ))
 
     fig.update_layout(
-        title=f"{ticker} — Entry Map  ({bias})",
+        interval_label = {"5m":"5m","1h":"1h","1d":"Daily","1wk":"Weekly"}.get(interval, interval)
+        title=f"{ticker} — Entry Map  ({bias})  |  {interval_label}" if interval_label else f"{ticker} — Entry Map  ({bias})",
         shapes=shapes,
         annotations=annotations,
         xaxis=dict(rangeslider_visible=False, range=[x_start, x_end]),
@@ -459,7 +460,7 @@ def render():
             _md(result)
         if levels:
             st.subheader("Entry Map")
-            _smc_entry_chart(df, levels, ticker)
+            _smc_entry_chart(df, levels, ticker, interval)
 
     elif analysis_type == "My ICT":
         st.subheader("My ICT Analysis")
@@ -578,7 +579,7 @@ def render():
             _md(result)
         if levels:
             st.subheader("Entry Map")
-            _smc_entry_chart(df, levels, ticker)
+            _smc_entry_chart(df, levels, ticker, interval)
 
     elif analysis_type == "Technical & Fundamental":
         st.subheader("AI Analysis")
