@@ -234,8 +234,8 @@ def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str, interval: str 
             font=dict(color="dodgerblue", size=12, family="Arial Black"),
         ))
 
+    interval_label = {"5m":"5m","1h":"1h","1d":"Daily","1wk":"Weekly"}.get(interval, interval)
     fig.update_layout(
-        interval_label = {"5m":"5m","1h":"1h","1d":"Daily","1wk":"Weekly"}.get(interval, interval)
         title=f"{ticker} — Entry Map  ({bias})  |  {interval_label}" if interval_label else f"{ticker} — Entry Map  ({bias})",
         shapes=shapes,
         annotations=annotations,
