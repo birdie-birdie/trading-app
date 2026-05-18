@@ -1,4 +1,4 @@
-# Trading Intelligence Dashboard
+# Trading AI Dashboard
 
 An AI-powered trading assistant for **ES / NQ index futures day trading** and **U.S. stock analysis** (swing to long-term). Built with Streamlit and Claude AI, tuned to both ICT (Inner Circle Trader) and Smart Money Concepts (SMC) trading strategies.
 
@@ -101,7 +101,7 @@ The **My SMC** strategy is available as an alternative in both the Morning Brief
 ## Architecture
 
 ```
-Trading Intelligence Dashboard
+Trading AI Dashboard
 │
 ├── app.py                     Streamlit entry point & sidebar navigation
 ├── config.py                  Central config — reads from .env

@@ -1,4 +1,4 @@
-# Trading Intelligence Dashboard — Documentation
+# Trading AI Dashboard — Documentation
 
 ## Overview
 

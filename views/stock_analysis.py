@@ -192,9 +192,9 @@ def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str):
             line=dict(color=color, width=1.5, dash=dash),
         ))
         annotations.append(dict(
-            x=x_end, y=y, xanchor="left", yanchor="middle",
-            text=f"  {label}: {y:.2f}", showarrow=False,
-            font=dict(color=color, size=11),
+            x=x_start, y=y, xanchor="left", yanchor="bottom",
+            text=f"{label}: {y:.2f}", showarrow=False,
+            font=dict(color=color, size=10),
         ))
 
     def zone(y_low, y_high, fill, border, label):
@@ -229,16 +229,16 @@ def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str):
         reward = abs(target - entry)
         rr     = f"{reward/risk:.1f}R" if risk > 0 else "—"
         annotations.append(dict(
-            x=x_end, y=target, xanchor="left", yanchor="bottom",
-            text=f"  R:R {rr}", showarrow=False,
+            x=x_start, y=target, xanchor="left", yanchor="top",
+            text=f"R:R {rr}", showarrow=False,
             font=dict(color="dodgerblue", size=12, family="Arial Black"),
         ))
 
     fig.update_layout(
-        title=f"{ticker} — SMC Entry Map  ({bias})",
+        title=f"{ticker} — Entry Map  ({bias})",
         shapes=shapes,
         annotations=annotations,
-        xaxis_rangeslider_visible=False,
+        xaxis=dict(rangeslider_visible=False, range=[x_start, x_end]),
         height=480,
         legend=dict(orientation="h"),
     )

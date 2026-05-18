@@ -33,7 +33,7 @@ class Config:
     APP_PASSWORD:            str  = os.getenv("APP_PASSWORD", "")
 
     # App
-    APP_TITLE:               str  = "Trading Intelligence Dashboard"
+    APP_TITLE:               str  = "Trading AI Dashboard"
     REFRESH_INTERVAL:        int  = int(os.getenv("REFRESH_INTERVAL", "60"))
 
     @classmethod

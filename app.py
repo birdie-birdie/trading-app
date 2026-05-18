@@ -26,7 +26,7 @@ def _login_gate() -> bool:
     # Centre the login form
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        st.markdown("## Trading Intelligence Dashboard")
+        st.markdown("## Trading AI Dashboard")
         st.markdown("Please sign in to continue.")
         with st.form("login_form"):
             username = st.text_input("Username")
@@ -66,7 +66,7 @@ def load_view(name: str):
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("## 📈 Trading Intelligence")
+    st.markdown("## 📈 Trading AI")
     st.markdown("---")
 
     page = st.radio(
