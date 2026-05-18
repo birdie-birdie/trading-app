@@ -143,7 +143,7 @@ def _candlestick_chart(ticker: str, period: str, interval: str, timeframe: str =
 
 # ─── SMC entry map chart ───────────────────────────────────────────────────────
 
-def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str, interval: str = ""):
+def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str, interval: str = "", prepost: bool = False):
     if not levels or df is None or df.empty:
         return
 
@@ -235,11 +235,16 @@ def _smc_entry_chart(df: pd.DataFrame, levels: dict, ticker: str, interval: str 
         ))
 
     interval_label = {"5m":"5m","1h":"1h","1d":"Daily","1wk":"Weekly"}.get(interval, interval)
+    intraday = interval in ["1m", "2m", "5m", "15m", "30m", "60m", "1h"]
+    is_futures = ticker.endswith("=F")
+    rangebreaks = [dict(bounds=["sat", "mon"])]
+    if intraday and not prepost and not is_futures:
+        rangebreaks.append(dict(bounds=[16, 9.5], pattern="hour"))
     fig.update_layout(
         title=f"{ticker} — Entry Map  ({bias})  |  {interval_label}" if interval_label else f"{ticker} — Entry Map  ({bias})",
         shapes=shapes,
         annotations=annotations,
-        xaxis=dict(rangeslider_visible=False, range=[x_start, x_end]),
+        xaxis=dict(rangeslider_visible=False, range=[x_start, x_end], rangebreaks=rangebreaks),
         height=480,
         legend=dict(orientation="h"),
     )
@@ -460,7 +465,7 @@ def render():
             _md(result)
         if levels:
             st.subheader("Entry Map")
-            _smc_entry_chart(df, levels, ticker, interval)
+            _smc_entry_chart(df, levels, ticker, interval, prepost)
 
     elif analysis_type == "My ICT":
         st.subheader("My ICT Analysis")
@@ -579,7 +584,7 @@ def render():
             _md(result)
         if levels:
             st.subheader("Entry Map")
-            _smc_entry_chart(df, levels, ticker, interval)
+            _smc_entry_chart(df, levels, ticker, interval, prepost)
 
     elif analysis_type == "Technical & Fundamental":
         st.subheader("AI Analysis")
